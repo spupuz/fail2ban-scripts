@@ -1,0 +1,12 @@
+[npm-docker]
+enabled = true
+ignoreip = 127.0.0.1/8 192.168.1.0/24 192.168.2.0/24
+ignorecommand = fail2ban-python /etc/fail2ban/scripts/ignorehost.sh <ip>
+chain = INPUT
+action = iptables-nft[type=allports, chain=DOCKER-USER]
+         telegram
+logpath = /var/log/default-host_*.log
+          /var/log/proxy-host-*.log
+maxretry = 3
+bantime  = 3600
+findtime = 300
