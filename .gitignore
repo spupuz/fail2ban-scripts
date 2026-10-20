@@ -2,6 +2,9 @@
 *.bak
 *.f2bui.bak
 
+# Segreti reali (mai versionare — vedi secrets.env.example)
+secrets.env
+
 # Dati runtime (mai versionare)
 db/
 run/
