@@ -9,10 +9,9 @@
 #   - The installed VERSION is exposed to the notifier so every Telegram
 #     message can show which version is running.
 #
-# Auto-update can be disabled in three ways (first match wins):
+# Auto-update can be disabled in two ways (first match wins):
 #   1. a file named .disable_auto_update exists next to VERSION
 #   2. config.local contains AUTO_UPDATE_ENABLED=false
-#   3. secrets.env contains AUTO_UPDATE_ENABLED=false
 #
 # Usage:
 #   scripts/version_check.sh            # daily check, may install an update
@@ -28,7 +27,6 @@ GITHUB_API="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION_FILE="$ROOT_DIR/VERSION"
 CONFIG_FILE="$ROOT_DIR/config.local"
-SECRETS_FILE="$ROOT_DIR/secrets.env"
 LAST_CHECK_FILE="$ROOT_DIR/.last_update_check"
 DISABLE_FLAG_FILE="$ROOT_DIR/.disable_auto_update"
 UPDATE_LOG="$ROOT_DIR/.update_log"
@@ -38,8 +36,8 @@ QUIET=0
 FORCE=0
 CHECK_ONLY=0
 
-# Files installed by an update. config.local and secrets.env are never
-# touched: they are host specific and never live in a release.
+# Files installed by an update. config.local is never touched: it is host
+# specific and never lives in a release.
 INSTALLED_FILES=(
   "VERSION"
   "scripts/deploy.sh"
@@ -92,12 +90,10 @@ is_auto_update_disabled() {
   [[ -f "$DISABLE_FLAG_FILE" ]] && return 0
 
   local value
-  for value in "$(read_setting "$CONFIG_FILE" AUTO_UPDATE_ENABLED)" \
-               "$(read_setting "$SECRETS_FILE" AUTO_UPDATE_ENABLED)"; do
-    case "${value,,}" in
-      false|0|no|off|disabled) return 0 ;;
-    esac
-  done
+  value="$(read_setting "$CONFIG_FILE" AUTO_UPDATE_ENABLED)"
+  case "${value,,}" in
+    false|0|no|off|disabled) return 0 ;;
+  esac
   return 1
 }
 
@@ -175,8 +171,8 @@ install_release() { # $1 = version
 # Send a plain text message with the notify bot. Never fails the caller.
 telegram_notify() { # $1 = message
   local message="$1" token chat_id payload
-  token="$(read_setting "$SECRETS_FILE" TELEGRAM_BOT_TOKEN_NOTIFY)"
-  chat_id="$(read_setting "$SECRETS_FILE" TELEGRAM_CHAT_ID_NOTIFY)"
+  token="$(read_setting "$CONFIG_FILE" TELEGRAM_BOT_TOKEN_NOTIFY)"
+  chat_id="$(read_setting "$CONFIG_FILE" TELEGRAM_CHAT_ID_NOTIFY)"
   [[ -n "$token" && -n "$chat_id" ]] || return 0
 
   payload="$(printf '{"chat_id":"%s","text":"%s","parse_mode":"HTML","disable_web_page_preview":true}' \

@@ -1,30 +1,51 @@
 # fail2ban-scripts/config.local.example — template for host-specific configuration
 # Copy this file to config.local (gitignored) and customize the values below.
 #
-# This file contains all machine-specific settings that must NOT be committed to GitHub:
-#   - ALLOWED_DOMAINS for ignorehost.py
-#   - ALLOWED_HOSTS for ignorehost.py
+#   cp config.local.example config.local && chmod 600 config.local
+#
+# This file contains ALL machine-specific settings that must NOT be committed
+# to GitHub:
+#   - Telegram bot tokens and chat IDs
+#   - Fail2Ban-UI callback secret
+#   - ALLOWED_DOMAINS / ALLOWED_HOSTS for ignorehost
 #   - Auto-update toggle (AUTO_UPDATE_ENABLED)
-#   - Any other custom configurations for your fail2ban deployment
 #
-# The source files (ignorehost.py, ignorehost_old.py) will read this file at runtime
-# and fall back to placeholder values if config.local is missing.
+# The source files read this file at runtime via deploy.sh / redact.sh /
+# version_check.sh / ignorehost.sh. There is no separate secrets file.
 #
-# Required: This file MUST be owned by root and have mode 0600.
+# Required: this file MUST be owned by root and have mode 0600.
+
+# ==============================
+# TELEGRAM CREDENTIALS
+# ==============================
+# Bot used by scripts/fail2ban-telegram.sh (ban/unban notifications)
+TELEGRAM_BOT_TOKEN_NOTIFY=__TELEGRAM_BOT_TOKEN_NOTIFY__
+# Chat ID used by scripts/fail2ban-telegram.sh and fail2ban-telegram_old.sh
+TELEGRAM_CHAT_ID_NOTIFY=__TELEGRAM_CHAT_ID_NOTIFY__
+# Bot used by scripts/ignorehost.sh, ignorehost_old.sh and
+# (for the token) fail2ban-telegram_old.sh
+TELEGRAM_BOT_TOKEN_IGNOREHOST=__TELEGRAM_BOT_TOKEN_IGNOREHOST__
+# Chat ID used by scripts/ignorehost.sh and ignorehost_old.sh
+TELEGRAM_CHAT_ID_IGNOREHOST=__TELEGRAM_CHAT_ID_IGNOREHOST__
+
+# ==============================
+# FAIL2BAN-UI CALLBACK SECRET
+# ==============================
+# Secret for action.d/ui-custom-action.conf (callback on 127.0.0.1:8083)
+FAIL2BAN_UI_CALLBACK_SECRET=__FAIL2BAN_UI_CALLBACK_SECRET__
 
 # ==============================
 # AUTO-UPDATE SETTINGS
 # ==============================
 # Enable/disable automatic script updates from GitHub
-# Set to "true" to enable updates, "false" to disable
+# Set to true to enable, false to disable
 AUTO_UPDATE_ENABLED=true
 
 # ==============================
 # ALLOWED DOMAINS FOR IGNOREHOST
 # ==============================
 # Domains whose IP ranges are whitelisted for automatic ignore
-# These are domain names that resolve to legitimate infrastructure
-# REPLACE WITH YOUR OWN DOMAINS
+# Replace with your own domains
 ALLOWED_DOMAINS = [
     "your-domain.duckdns.org",
     "your-domain.mywire.org",
@@ -35,36 +56,10 @@ ALLOWED_DOMAINS = [
 # ==============================
 # ALLOWED HOSTS FOR IGNOREHOST
 # ==============================
-# Host providers (network blocks) that are whitelisted regardless of domain
-# Use .example.tld format for provider-level filtering
-# REPLACE WITH YOUR OWN PROVIDER DOMAINS
+# Host providers (network blocks) whitelisted regardless of domain
+# Replace with your own provider domains
 ALLOWED_HOSTS = [
     ".static.your-isp.it",
     ".retail.your-fiber.it",
     ".pool-bba.your-provider.it"
 ]
-
-# ==============================
-# TELEGRAM CREDENTIALS (for fail2ban-telegram.sh and fail2ban-telegram_old.sh)
-# ==============================
-# Telegram bot credentials for both notification and ignorehost scripts
-# Replace these with your own bot tokens and chat IDs
-TELEGRAM_BOT_TOKEN_NOTIFY = "__TELEGRAM_BOT_TOKEN_NOTIFY__"
-TELEGRAM_CHAT_ID_NOTIFY = "__TELEGRAM_CHAT_ID_NOTIFY__"
-TELEGRAM_BOT_TOKEN_IGNOREHOST = "__TELEGRAM_BOT_TOKEN_IGNOREHOST__"
-TELEGRAM_CHAT_ID_IGNOREHOST = "__TELEGRAM_CHAT_ID_IGNOREHOST__"
-
-# Optional: Separate callback secret for fail2ban-ui
-TELEGRAM_UI_CALLBACK_SECRET = "__FAIL2BAN_UI_CALLBACK_SECRET__"
-
-# ==============================
-# SECRETS (use secrets.env for real secrets)
-# ==============================
-# Telegram and Fail2Ban-UI callback secrets are injected from secrets.env at deploy time:
-#   TELEGRAM_BOT_TOKEN_NOTIFY=__TELEGRAM_BOT_TOKEN_NOTIFY__
-#   TELEGRAM_CHAT_ID_NOTIFY=__TELEGRAM_CHAT_ID_NOTIFY__
-#   TELEGRAM_BOT_TOKEN_IGNOREHOST=__TELEGRAM_BOT_TOKEN_IGNOREHOST__
-#   TELEGRAM_CHAT_ID_IGNOREHOST=__TELEGRAM_CHAT_ID_IGNOREHOST__
-#   FAIL2BAN_UI_CALLBACK_SECRET=__FAIL2BAN_UI_CALLBACK_SECRET__
-#
-# This file is for configuration, NOT for secrets. Secrets are managed separately.

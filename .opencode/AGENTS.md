@@ -19,7 +19,7 @@ endings (as shipped upstream) — do not "fix" them.
 ## Hard rules
 
 - **No secrets in git.** Source files carry `__PLACEHOLDER__` tokens only; real
-  values live in `secrets.env` (gitignored). `scripts/test_secrets.sh` fails the
+  values live in `config.local` (gitignored). `local_tests/test_secrets.sh` fails the
   build otherwise. If a real credential ever lands in a commit, rotate it.
 - **No host-specific paths.** The live fail2ban directory is always passed
   explicitly (`scripts/deploy.sh --dest DIR`, `scripts/redact.sh --src DIR`);
@@ -55,13 +55,13 @@ bash scripts/run_tests.sh
 
 | Test | Scope |
 |---|---|
-| `scripts/test_syntax.sh` | `bash -n` / Python `compile()` for every script |
-| `scripts/test_configs.sh` | INI sections, `failregex` + `<HOST>` + regex compiles, `/etc/fail2ban/scripts/*` cross refs, executable bits, placeholders, semver `VERSION` |
-| `scripts/test_secrets.sh` | leak scan (Telegram tokens, chat IDs, callback secret, high-entropy blobs, private keys) |
-| `scripts/test_deploy.sh` | `deploy.sh` + `redact.sh` round trip with fake secrets, dry-run safety, placeholder-secret rejection |
-| `scripts/test_no_host_paths.sh` | rejects any host-specific absolute path |
-| `scripts/test_skill_sync.sh` | `.agents/skills/*` and `.opencode/commands/*` stay in sync |
-| `scripts/test_yaml.sh` | parses `.github/workflows/*.yml` (PyYAML in CI) |
+| `local_tests/test_syntax.sh` | `bash -n` / Python `compile()` for every script |
+| `local_tests/test_configs.sh` | INI sections, `failregex` + `<HOST>` + regex compiles, `/etc/fail2ban/scripts/*` cross refs, executable bits, placeholders, semver `VERSION` |
+| `local_tests/test_secrets.sh` | leak scan (Telegram tokens, chat IDs, callback secret, high-entropy blobs, private keys) |
+| `local_tests/test_deploy.sh` | `deploy.sh` + `redact.sh` round trip with fake secrets, dry-run safety, placeholder-secret rejection |
+| `local_tests/test_no_host_paths.sh` | rejects any host-specific absolute path |
+| `local_tests/test_skill_sync.sh` | `.agents/skills/*` and `.opencode/commands/*` stay in sync |
+| `local_tests/test_yaml.sh` | parses `.github/workflows/*.yml` (PyYAML in CI) |
 
 Requirements: `bash`, `python3`; `pyyaml` for the workflow check (CI installs it).
 

@@ -13,9 +13,9 @@ fail=0
 TMP="$(mktemp -d /tmp/opencode/fail2ban-deploy-test.XXXXXX 2>/dev/null || mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-FAKE_SECRETS="$TMP/secrets.env"
+FAKE_SECRETS="$TMP/config.local"
 # The values are built from non-credential-looking variable names so this test
-# fixture itself stays clean under scripts/test_secrets.sh.
+# fixture itself stays clean under local_tests/test_secrets.sh.
 FAKE_NOTIFY_TOKEN="123456789:FAKEFAKEFAKEFAKEFAKEFAKEFAKE0"
 FAKE_NOTIFY_CHAT="-1001234567890"
 FAKE_IGNORE_TOKEN="987654321:FAKEFAKEFAKEFAKEFAKEFAKEFAKE0"
@@ -87,7 +87,7 @@ if [[ -n "$(ls -A "$EMPTY")" ]]; then
 fi
 
 # 5. missing/placeholder secrets must abort the deploy
-BAD="$TMP/bad-secrets.env"
+BAD="$TMP/bad-config.local"
 cp "$FAKE_SECRETS" "$BAD"
 sed -i 's/^TELEGRAM_CHAT_ID_NOTIFY=.*/TELEGRAM_CHAT_ID_NOTIFY=__TELEGRAM_CHAT_ID_NOTIFY__/' "$BAD"
 if bash scripts/deploy.sh --apply --dest "$TMP/other" --secrets "$BAD" >/dev/null 2>&1; then

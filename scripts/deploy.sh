@@ -1,18 +1,18 @@
 #!/bin/bash
 # Deploy the fail2ban custom scripts/config into a fail2ban data directory,
-# injecting the real secrets from secrets.env into the __PLACEHOLDER__ tokens.
+# injecting the real secrets from config.local into the __PLACEHOLDER__ tokens.
 # No host path is baked in: the destination must always be given explicitly.
 #
 # Usage:
 #   scripts/deploy.sh --dest DIR                 # dry-run: show what would be written
 #   scripts/deploy.sh --dest DIR --apply         # write the files to DIR
 #   scripts/deploy.sh --dest DIR --apply --secrets FILE
-#   scripts/deploy.sh --dest DIR --secrets FILE  (defaults to ./secrets.env)
+#   scripts/deploy.sh --dest DIR --secrets FILE  (defaults to ./config.local)
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST=""
-SECRETS="$REPO_ROOT/secrets.env"
+SECRETS="$REPO_ROOT/config.local"
 APPLY=0
 
 usage() {
@@ -51,8 +51,8 @@ FILES=(
 )
 
 if [[ ! -f "$SECRETS" ]]; then
-  echo "ERROR: secrets file not found: $SECRETS" >&2
-  echo "Create it with: cp secrets.env.example secrets.env && chmod 600 secrets.env" >&2
+  echo "ERROR: config file not found: $SECRETS" >&2
+  echo "Create it with: cp config.local.example config.local && chmod 600 config.local" >&2
   exit 1
 fi
 
@@ -81,7 +81,7 @@ done
 
 echo "Repository: $REPO_ROOT"
 echo "Destination: $DEST"
-echo "Secrets:     $SECRETS (values masked)"
+echo "Config:      $SECRETS (values masked)"
 for ph in "${PLACEHOLDERS[@]}"; do
   key="${ph//__/}"
   printf '  %-32s = %s\n' "$key" "<set, ${#SECRET_MAP[$key]} chars>"

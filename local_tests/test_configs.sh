@@ -31,7 +31,7 @@ REQUIRED_FILES=(
   jail.local
   paths-overrides.local
   VERSION
-  secrets.env.example
+  config.local.example
 )
 
 # --- 1. required files present -------------------------------------------

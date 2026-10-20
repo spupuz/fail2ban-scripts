@@ -87,7 +87,7 @@ def get_geo_location(ip):
         return "Not available"
 
 def send_telegram_notification(ip, matching_domain, is_domain):
-    # Secrets are injected at deploy time by scripts/deploy.sh from secrets.env
+    # Secrets are injected at deploy time by scripts/deploy.sh from config.local
     api_token = "__TELEGRAM_BOT_TOKEN_IGNOREHOST__"
     chat_id = "__TELEGRAM_CHAT_ID_IGNOREHOST__"
     url = f"https://api.telegram.org/bot{api_token}/sendMessage"

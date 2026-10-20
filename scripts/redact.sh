@@ -14,7 +14,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC=""
 OUT=""
 FILE=""
-SECRETS="$REPO_ROOT/secrets.env"
+SECRETS="$REPO_ROOT/config.local"
 
 FILES=(
   "scripts/fail2ban-telegram.sh"
@@ -48,7 +48,7 @@ if [[ -z "$FILE" && -z "$SRC" ]]; then
   usage 1
 fi
 
-[[ -f "$SECRETS" ]] || { echo "ERROR: secrets file not found: $SECRETS" >&2; exit 1; }
+[[ -f "$SECRETS" ]] || { echo "ERROR: config file not found: $SECRETS" >&2; exit 1; }
 
 redact() { # $1 = source file, $2 = destination file (or "-" for stdout)
   python3 - "$1" "$2" "$SECRETS" <<'PY'

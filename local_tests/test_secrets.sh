@@ -2,7 +2,7 @@
 # Secret/leak scan over every file that is NOT gitignored.
 #
 # Fails when a real-looking credential is committed. Placeholders of the form
-# __NAME__ (see secrets.env.example) are always allowed — they are the
+# __NAME__ (see config.local.example) are always allowed — they are the
 # mechanism this repo uses to keep real values out of git history.
 set -uo pipefail
 
@@ -10,10 +10,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 mapfile -t FILES < <(git ls-files -co --exclude-standard 2>/dev/null || find . -type f -not -path './.git/*')
-# secrets.env is gitignored, but make sure it can never be scanned-and-shipped
+# config.local is gitignored, but make sure it can never be scanned-and-shipped
 FILTERED=()
 for f in "${FILES[@]}"; do
-  [[ -f "$f" && "$f" != "secrets.env" ]] && FILTERED+=("$f")
+  [[ -f "$f" && "$f" != "config.local" ]] && FILTERED+=("$f")
 done
 FILES=("${FILTERED[@]}")
 

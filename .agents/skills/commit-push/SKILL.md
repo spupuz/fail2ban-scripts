@@ -10,16 +10,16 @@ description: Review working-tree changes, verify them with the local suite (bash
 > **What this project is:** the custom fail2ban scripts and configuration that get deployed into the live fail2ban **data directory** (its location is host-specific and is never hardcoded here — always pass it explicitly with `scripts/deploy.sh --dest DIR`).
 > - `scripts/fail2ban-telegram.sh` (bash) and `scripts/ignorehost*.sh` (**Python**, `#!/usr/bin/env fail2ban-python`, despite the `.sh` extension).
 > - `action.d/*.local|conf`, `filter.d/npm-docker.conf`, `jail.d/npm-docker.local`, `jail.local`, `paths-overrides.local` — fail2ban INI files.
-> - `scripts/deploy.sh` renders the files into the live fail2ban directory while injecting real secrets from `secrets.env` (gitignored) into `__PLACEHOLDER__` tokens.
+> - `scripts/deploy.sh` renders the files into the live fail2ban directory while injecting real secrets from `config.local` (gitignored) into `__PLACEHOLDER__` tokens.
 > - There is **no** `package.json`, no `tests/` directory, no Node, no Docker, no `requirements.txt`. The only verification entry point is **`bash scripts/run_tests.sh`**. Do NOT run `npm test`, `pytest`, `docker compose`, or anything meant for other repositories.
-> - **No host path is hardcoded anywhere** (source, docs, skills, workflows): the live fail2ban data directory must always be passed explicitly as `scripts/deploy.sh --dest DIR`. `scripts/test_no_host_paths.sh` fails the build if one appears.
+> - **No host path is hardcoded anywhere** (source, docs, skills, workflows): the live fail2ban data directory must always be passed explicitly as `scripts/deploy.sh --dest DIR`. `local_tests/test_no_host_paths.sh` fails the build if one appears.
 > - `fail2ban-client` is unavailable in CI — never make the tests depend on a running fail2ban.
 
 ## Rules
 
 - Only commit what the user asked for; **never commit secrets**.
-- **`secrets.env` must never be tracked, staged or committed** — real Telegram bot tokens, chat IDs and the Fail2Ban-UI callback secret live only there. Source files must keep their `__PLACEHOLDER__` tokens. `scripts/test_secrets.sh` is the gate: if it fails, you leaked a credential.
-- **Never stage tooling/memory files**: `secrets.env`, `.opencode/`, `.agents/`, `.kilo/`, `.roo/`, `.omnistate/`, `AGENTS.md`, `tasks-history.json`, `*.bak`, `*.f2bui.bak`, `db/`, `run/`, `.fail2ban-ui-operations/`. `.gitignore` already covers them; if one is staged, stop and `git rm --cached <file>`.
+- **`config.local` must never be tracked, staged or committed** — real Telegram bot tokens, chat IDs and the Fail2Ban-UI callback secret live only there. Source files must keep their `__PLACEHOLDER__` tokens. `local_tests/test_secrets.sh` is the gate: if it fails, you leaked a credential.
+- **Never stage tooling/memory files**: `config.local`, `.opencode/`, `.agents/`, `.kilo/`, `.roo/`, `.omnistate/`, `AGENTS.md`, `tasks-history.json`, `*.bak`, `*.f2bui.bak`, `db/`, `run/`, `.fail2ban-ui-operations/`. `.gitignore` already covers them; if one is staged, stop and `git rm --cached <file>`.
 - **`VERSION` (bare `X.Y.Z`) is the release trigger**: pushing a change to `VERSION` makes `.github/workflows/release.yml` tag `vX.Y.Z` and publish the release. Bump it only when a release is actually intended (code/config change), never in docs-only commits.
 - Never create the tag/release manually with `gh release create` — CI does it. Only push after the user explicitly asks to commit/push (or invokes this skill).
 - Never leave auto-generated release notes as-is — always rewrite them.
@@ -46,14 +46,14 @@ Verify before committing:
 
 - **No secrets**: no bot tokens (`<digits>:AA...`), chat IDs, callback secrets, passwords or API keys — in any file type. Run the leak scan:
   ```bash
-  bash scripts/test_secrets.sh
+  bash local_tests/test_secrets.sh
   ```
   Every credential-looking value must be a `__PLACEHOLDER__`, a `YOUR_...` doc value, or a `$VAR` reference. If a real value appears, **stop** and report.
 - **No tooling/memory files staged**: `git ls-files | grep -E "(secrets\.env$|\.bak$|^db/|^run/|\.fail2ban-ui-operations/)"` must be empty.
 - **No host-specific paths**: never introduce absolute paths that exist only on
   the authoring machine (the live fail2ban directory is always a runtime
   argument: `scripts/deploy.sh --dest DIR`, `scripts/redact.sh --src DIR`).
-  `scripts/test_no_host_paths.sh` is the gate.
+  `local_tests/test_no_host_paths.sh` is the gate.
 - **No debug leftovers**: no new `set -x`, ad-hoc `echo` debugging, or new `TODO`/`FIXME` in the scripts (pre-existing markers are fine).
 - **No deleted functionality**: jails, filters, actions or options removed must be confirmed intentional (removing a jail stops its protection — treat as a breaking change).
 - **fail2ban-specific red flags** — STOP and ask the user if the diff does any of these:
@@ -73,7 +73,7 @@ All must pass before committing (this is exactly what CI runs):
 bash scripts/run_tests.sh
 ```
 
-It executes, in order: `scripts/test_syntax.sh`, `test_configs.sh`, `test_secrets.sh`, `test_deploy.sh`, `test_no_host_paths.sh`, `test_skill_sync.sh`, `test_yaml.sh`.
+It executes, in order: `local_tests/test_syntax.sh`, `test_configs.sh`, `test_secrets.sh`, `test_deploy.sh`, `test_no_host_paths.sh`, `test_skill_sync.sh`, `test_yaml.sh`.
 
 If any step fails: fix it, re-run, and only then continue — **never commit or push a failing tree**.
 
@@ -96,7 +96,7 @@ Add a `### vX.Y.Z` entry to the `## Changelog` section of `README.md` describing
 
 ```bash
 git add -A
-git status --short   # re-confirm no secrets.env / .opencode / .agents staged
+git status --short   # re-confirm no config.local / .opencode / .agents staged
 git commit -m "feat: ..."   # conventional: feat|fix|docs|chore|ci|test|security|refactor
 ```
 

@@ -29,9 +29,8 @@ function get_geo_location {
   python3 -c "import urllib.request, json; data = json.loads(urllib.request.urlopen('https://ipapi.co/$1/json/').read()); print(f'{data[\"city\"]}, {data[\"region\"]}, {data[\"country_name\"]}')" 2>/dev/null || echo "Not available"
 }
 # Send notification
-# Load credentials from config.local at runtime. Replace __TELEGRAM_BOT_TOKEN_IGNOREHOST__ and __TELEGRAM_CHAT_ID_NOTIFY__ with your real values in config.local
+# Secrets are injected at deploy time by scripts/deploy.sh from config.local
 function send_msg {
-  # Secrets are injected at deploy time by scripts/deploy.sh from secrets.env
   apiToken=__TELEGRAM_BOT_TOKEN_IGNOREHOST__
   chatId=__TELEGRAM_CHAT_ID_NOTIFY__
   url="https://api.telegram.org/bot$apiToken/sendMessage"

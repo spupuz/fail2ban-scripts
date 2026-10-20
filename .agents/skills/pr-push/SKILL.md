@@ -7,12 +7,12 @@ description: Check open GitHub PRs, review them for secrets and fail2ban/host-sa
 
 **Goal:** Check open GitHub PRs, merge them onto a release branch, verify the result with the local test suite, bump `VERSION`, publish via `main`, and confirm the CI-created release with rewritten notes.
 
-> **Project shape:** custom fail2ban scripts (`scripts/fail2ban-telegram.sh` is bash, `scripts/ignorehost*.sh` are **Python** despite `.sh`) plus fail2ban `.conf`/`.local` config files, deployed with `scripts/deploy.sh` (secret injection from the gitignored `secrets.env`; the target directory is always passed explicitly, never hardcoded). There is **no** Node/npm, no `tests/` dir, no Docker, no Python dependencies — the verification entry point is **`bash scripts/run_tests.sh`**, which is exactly what `.github/workflows/ci.yml` runs. Never run commands belonging to other repositories (`npm test`, `pytest`, `docker compose`).
+> **Project shape:** custom fail2ban scripts (`scripts/fail2ban-telegram.sh` is bash, `scripts/ignorehost*.sh` are **Python** despite `.sh`) plus fail2ban `.conf`/`.local` config files, deployed with `scripts/deploy.sh` (secret injection from the gitignored `config.local`; the target directory is always passed explicitly, never hardcoded). There is **no** Node/npm, no `tests/` dir, no Docker, no Python dependencies — the verification entry point is **`bash scripts/run_tests.sh`**, which is exactly what `.github/workflows/ci.yml` runs. Never run commands belonging to other repositories (`npm test`, `pytest`, `docker compose`).
 
 ## Rules
 
-- Never merge (or release) a PR that carries a real secret: bot tokens, chat IDs, callback secrets, API keys. `scripts/test_secrets.sh` is the gate; source files must keep `__PLACEHOLDER__` tokens and `secrets.env` must stay untracked.
-- Never stage `.opencode/`, `.agents/`, `secrets.env`, `*.bak`, `db/`, `run/`, `.fail2ban-ui-operations/`.
+- Never merge (or release) a PR that carries a real secret: bot tokens, chat IDs, callback secrets, API keys. `local_tests/test_secrets.sh` is the gate; source files must keep `__PLACEHOLDER__` tokens and `config.local` must stay untracked.
+- Never stage `.opencode/`, `.agents/`, `config.local`, `*.bak`, `db/`, `run/`, `.fail2ban-ui-operations/`.
 - `VERSION` (bare `X.Y.Z`) drives `.github/workflows/release.yml`: a push touching it tags `vX.Y.Z` and publishes the release. Never create the tag manually with `gh release create`.
 - **No `origin` remote or `gh` not authenticated?** This repository may be local-only: report that there are no PRs to merge, and fall back to the `commit-push` flow for whatever is in the working tree — never invent a remote or a PR.
 - Never leave auto-generated release notes as-is — always rewrite them.
@@ -96,7 +96,7 @@ Add a `### vX.Y.Z` entry to the `## Changelog` section in `README.md`.
 
 ```bash
 git add -A
-git status --short     # confirm no secrets.env / tooling files staged
+git status --short     # confirm no config.local / tooling files staged
 git commit -m "vX.Y.Z: merge PRs #A-B, summary
 
 - Merge PR #A: short description

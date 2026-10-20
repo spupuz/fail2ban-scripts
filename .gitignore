@@ -1,12 +1,9 @@
-# Backup creati dalla fail2ban-ui
+# Backup files from fail2ban-ui
 *.bak
 *.f2bui.bak
 
-# Real secrets (do not commit — see secrets.env.example)
-secrets.env
-
-# Machine-specific config with sensitive settings (ALLOWED_DOMAINS, etc.)
-# This file must not be pushed to GitHub. Copy from config.local.example instead.
+# Machine-specific config (secrets, domains, settings) — never commit
+# Copy from config.local.example and fill with real values
 config.local
 
 # Dati runtime (mai versionare)

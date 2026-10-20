@@ -47,7 +47,7 @@ EMOJI_INFO = "ℹ️"
 EMOJI_TIME = "🕐"
 
 # Telegram Configuration
-# Secrets are injected at deploy time by scripts/deploy.sh from secrets.env
+# Secrets are injected at deploy time by scripts/deploy.sh from config.local
 TELEGRAM_API_TOKEN = "__TELEGRAM_BOT_TOKEN_IGNOREHOST__"
 TELEGRAM_CHAT_ID = "__TELEGRAM_CHAT_ID_IGNOREHOST__"
 
