@@ -11,7 +11,7 @@
 # Optional second argument: Ip for ban/unban
 
 # Telegram Bot Credentials
-# Secrets are injected at deploy time by scripts/deploy.sh from secrets.env
+# Load credentials from config.local at runtime. Replace __TELEGRAM_BOT_TOKEN_NOTIFY__ and __TELEGRAM_CHAT_ID_NOTIFY__ with your real values in config.local
 API_TOKEN="__TELEGRAM_BOT_TOKEN_NOTIFY__"
 CHAT_ID="__TELEGRAM_CHAT_ID_NOTIFY__"
 TELEGRAM_URL="https://api.telegram.org/bot${API_TOKEN}/sendMessage"

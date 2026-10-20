@@ -45,6 +45,19 @@ ALLOWED_HOSTS = [
 ]
 
 # ==============================
+# TELEGRAM CREDENTIALS (for fail2ban-telegram.sh and fail2ban-telegram_old.sh)
+# ==============================
+# Telegram bot credentials for both notification and ignorehost scripts
+# Replace these with your own bot tokens and chat IDs
+TELEGRAM_BOT_TOKEN_NOTIFY = "__TELEGRAM_BOT_TOKEN_NOTIFY__"
+TELEGRAM_CHAT_ID_NOTIFY = "__TELEGRAM_CHAT_ID_NOTIFY__"
+TELEGRAM_BOT_TOKEN_IGNOREHOST = "__TELEGRAM_BOT_TOKEN_IGNOREHOST__"
+TELEGRAM_CHAT_ID_IGNOREHOST = "__TELEGRAM_CHAT_ID_IGNOREHOST__"
+
+# Optional: Separate callback secret for fail2ban-ui
+TELEGRAM_UI_CALLBACK_SECRET = "__FAIL2BAN_UI_CALLBACK_SECRET__"
+
+# ==============================
 # SECRETS (use secrets.env for real secrets)
 # ==============================
 # Telegram and Fail2Ban-UI callback secrets are injected from secrets.env at deploy time:
