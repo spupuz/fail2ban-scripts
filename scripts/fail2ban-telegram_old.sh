@@ -30,8 +30,9 @@ function get_geo_location {
 }
 # Send notification
 function send_msg {
-  apiToken=736052043:AAEA0A7hUWUWtmeaUdWflrDY6goZMIx1vOQ
-  chatId=-4579200277
+  # Secrets are injected at deploy time by scripts/deploy.sh from secrets.env
+  apiToken=__TELEGRAM_BOT_TOKEN_IGNOREHOST__
+  chatId=__TELEGRAM_CHAT_ID_NOTIFY__
   url="https://api.telegram.org/bot$apiToken/sendMessage"
 
   if [ -n "$2" ]; then

@@ -1,0 +1,34 @@
+name: CI
+
+# Same suite developers run locally with `bash scripts/run_tests.sh`:
+#   - scripts/test_syntax.sh          bash -n / python compile for every script
+#   - scripts/test_configs.sh         fail2ban config structure, cross refs, semver
+#   - scripts/test_secrets.sh         secret/leak scan over all non-ignored files
+#   - scripts/test_deploy.sh          deploy.sh/redact.sh placeholder round trip
+#   - scripts/test_skill_sync.sh      .agents/skills vs .opencode/commands parity
+#   - scripts/test_no_host_paths.sh   rejects host-specific absolute paths#   - scripts/test_yaml.sh            workflow YAML parse check
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install --quiet pyyaml
+
+      - name: Run test suite
+        run: bash scripts/run_tests.sh

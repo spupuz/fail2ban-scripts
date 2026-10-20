@@ -69,8 +69,9 @@ def get_geo_location(ip):
         return "Not available"
 
 def send_telegram_notification(ip, matching_domain, is_domain):
-    api_token = "736052043:AAEA0A7hUWUWtmeaUdWflrDY6goZMIx1vOQ"
-    chat_id = "-4521079627"
+    # Secrets are injected at deploy time by scripts/deploy.sh from secrets.env
+    api_token = "__TELEGRAM_BOT_TOKEN_IGNOREHOST__"
+    chat_id = "__TELEGRAM_CHAT_ID_IGNOREHOST__"
     url = f"https://api.telegram.org/bot{api_token}/sendMessage"
 
     reverse_dns = reverse_dns_lookup(ip)
