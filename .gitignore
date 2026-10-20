@@ -1,0 +1,13 @@
+# Backup creati dalla fail2ban-ui
+*.bak
+*.f2bui.bak
+
+# Dati runtime (mai versionare)
+db/
+run/
+.fail2ban-ui-operations/
+
+# Editor / OS
+*.swp
+*~
+.DS_Store
