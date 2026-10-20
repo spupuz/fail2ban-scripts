@@ -115,7 +115,6 @@ done
 declare -A EXPECTED_PLACEHOLDER=(
   [scripts/fail2ban-telegram.sh]=__TELEGRAM_BOT_TOKEN_NOTIFY__
   [scripts/ignorehost.sh]=__TELEGRAM_BOT_TOKEN_IGNOREHOST__
-  [scripts/ignorehost_old.sh]=__TELEGRAM_BOT_TOKEN_IGNOREHOST__
   [action.d/ui-custom-action.conf]=__FAIL2BAN_UI_CALLBACK_SECRET__
 )
 for f in "${!EXPECTED_PLACEHOLDER[@]}"; do

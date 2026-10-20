@@ -104,8 +104,8 @@ if ! bash scripts/redact.sh --src "$DEST" --out "$RED" --secrets "$FAKE_SECRETS"
   echo "FAIL redact.sh exited non-zero"
   fail=1
 else
-  for rel in scripts/fail2ban-telegram.sh scripts/fail2ban-telegram_old.sh \
-             scripts/ignorehost.sh scripts/ignorehost_old.sh \
+  for rel in scripts/fail2ban-telegram.sh \
+             scripts/ignorehost.sh \
              action.d/telegram.local action.d/iptables-nft.local \
              action.d/ui-custom-action.conf filter.d/npm-docker.conf \
              jail.d/npm-docker.local jail.local paths-overrides.local; do

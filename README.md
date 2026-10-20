@@ -11,8 +11,7 @@ Repository of **custom fail2ban scripts and configuration**.
 |------|-------------|
 | `scripts/fail2ban-telegram.sh` | Formatted Telegram notifications for ban/unban (bash, current version) |
 | `scripts/ignorehost.sh` | Host lookup for ignorehost whitelist (Python, despite `.sh` extension) |
-| `scripts/fail2ban-telegram_old.sh` | Previous version of Telegram script (historical) |
-| `scripts/ignorehost_old.sh` | Previous version of ignorehost (historical) |
+
 | `scripts/deploy.sh` | Copies files to the fail2ban data directory **injecting secrets** from `config.local` |
 | `scripts/redact.sh` | Inverse operation: from the live directory to the repo, replacing secrets with placeholders |
 | `scripts/version_check.sh` | Check for updates and auto-install latest releases from GitHub |
@@ -120,6 +119,10 @@ The deploy → redact round trip is verified byte-for-byte by `local_tests/test_
 - **MAJOR** — breaking changes (removed jails, changed behavior)
 
 ## Changelog
+
+### v0.1.1
+
+- Remove obsolete historical scripts `scripts/fail2ban-telegram_old.sh` and `scripts/ignorehost_old.sh` and all references.
 
 ### v0.1.0
 

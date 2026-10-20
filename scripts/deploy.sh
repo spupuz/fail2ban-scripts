@@ -38,9 +38,7 @@ fi
 # Files deployed, mirroring the repository layout (relative to REPO_ROOT).
 FILES=(
   "scripts/fail2ban-telegram.sh"
-  "scripts/fail2ban-telegram_old.sh"
   "scripts/ignorehost.sh"
-  "scripts/ignorehost_old.sh"
   "action.d/telegram.local"
   "action.d/iptables-nft.local"
   "action.d/ui-custom-action.conf"

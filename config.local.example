@@ -20,12 +20,11 @@
 # ==============================
 # Bot used by scripts/fail2ban-telegram.sh (ban/unban notifications)
 TELEGRAM_BOT_TOKEN_NOTIFY=__TELEGRAM_BOT_TOKEN_NOTIFY__
-# Chat ID used by scripts/fail2ban-telegram.sh and fail2ban-telegram_old.sh
+# Chat ID used by scripts/fail2ban-telegram.sh
 TELEGRAM_CHAT_ID_NOTIFY=__TELEGRAM_CHAT_ID_NOTIFY__
-# Bot used by scripts/ignorehost.sh, ignorehost_old.sh and
-# (for the token) fail2ban-telegram_old.sh
+# Bot used by scripts/ignorehost.sh
 TELEGRAM_BOT_TOKEN_IGNOREHOST=__TELEGRAM_BOT_TOKEN_IGNOREHOST__
-# Chat ID used by scripts/ignorehost.sh and ignorehost_old.sh
+# Chat ID used by scripts/ignorehost.sh
 TELEGRAM_CHAT_ID_IGNOREHOST=__TELEGRAM_CHAT_ID_IGNOREHOST__
 
 # ==============================

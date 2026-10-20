@@ -9,8 +9,8 @@ Custom **fail2ban** scripts and configuration, deployed into a live fail2ban
 
 | Kind | Files | Notes |
 |---|---|---|
-| Bash | `scripts/fail2ban-telegram.sh`, `scripts/*_old.sh`, `scripts/*.sh` | `bash -n` is the syntax gate |
-| Python | `scripts/ignorehost.sh`, `scripts/ignorehost_old.sh` | **Python despite the `.sh` extension** — run under `fail2ban-python`; gate is `python3 -c 'compile(...)'` |
+| Bash | `scripts/fail2ban-telegram.sh`, `scripts/*.sh` | `bash -n` is the syntax gate |
+| Python | `scripts/ignorehost.sh` | **Python despite the `.sh` extension** — run under `fail2ban-python`; gate is `python3 -c 'compile(...)'` |
 | config | `action.d/*`, `filter.d/*`, `jail.d/*`, `jail.local`, `paths-overrides.local` | fail2ban INI files, executed as root |
 
 `iptables-nft.local`, `npm-docker.conf` and `npm-docker.local` use **CRLF** line
