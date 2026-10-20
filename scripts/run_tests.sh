@@ -1,5 +1,5 @@
 #!/bin/bash
-# Local test entry point — runs every scripts/test_*.sh and aggregates results.
+# Local test entry point — runs every local_tests/test_*.sh and aggregates results.
 # This is the exact same suite CI runs via .github/workflows/ci.yml.
 #
 #   bash scripts/run_tests.sh
@@ -10,7 +10,7 @@ cd "$ROOT"
 
 tests=(local_tests/test_*.sh)
 if [[ ! -e "${tests[0]}" ]]; then
-  echo "No tests found in scripts/test_*.sh"
+  echo "No tests found in local_tests/test_*.sh"
   exit 1
 fi
 
