@@ -6,18 +6,36 @@ import json
 import urllib.request
 from fail2ban.server.ipdns import DNSUtils, IPAddr
 
+# Allowed domains and hosts
+# These are loaded from config.local at runtime.
+# If config.local is missing, placeholder values are used.
 ALLOWED_DOMAINS = [
-    "your-domain.duckdns.org",
-    "your-domain.mywire.org",
-    "another-domain.duckdns.org",
-    "another-domain.mywire.org"
+    "placeholder.duckdns.org",
+    "placeholder.mywire.org"
 ]
 
 ALLOWED_HOSTS = [
-    ".retail.your-fiber.it",
-    ".static.your-isp.it",
-    ".pool-bba.your-provider.it",
+    ".placeholder.isp.it",
+    ".placeholder.fiber.it"
 ]
+
+# Load custom configuration from config.local (gitignored)
+# This file contains host-specific settings that must not be committed to GitHub
+import os as _os
+_config_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'config.local')
+if _os.path.isfile(_config_path):
+    try:
+        _config_globals = {}
+        with open(_config_path, 'r') as _f:
+            _config_content = _f.read()
+        # Execute the config file to load its variables
+        exec(compile(_config_content, _config_path, 'exec'), _config_globals)
+        if 'ALLOWED_DOMAINS' in _config_globals:
+            ALLOWED_DOMAINS = _config_globals['ALLOWED_DOMAINS']
+        if 'ALLOWED_HOSTS' in _config_globals:
+            ALLOWED_HOSTS = _config_globals['ALLOWED_HOSTS']
+    except Exception as _e:
+        print(f"Warning: Failed to load config.local: {_e}", file=sys.stderr)
 
 def process_args(argv):
     if len(argv) != 2:
