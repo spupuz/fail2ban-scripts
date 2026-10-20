@@ -1,0 +1,57 @@
+# fail2ban-scripts/config.local.example — template for host-specific configuration
+# Copy this file to config.local (gitignored) and customize the values below.
+#
+# This file contains all machine-specific settings that must NOT be committed to GitHub:
+#   - ALLOWED_DOMAINS for ignorehost.py
+#   - ALLOWED_HOSTS for ignorehost.py
+#   - Auto-update toggle (AUTO_UPDATE_ENABLED)
+#   - Any other custom configurations for your fail2ban deployment
+#
+# The source files (ignorehost.py, ignorehost_old.py) will read this file at runtime
+# and fall back to placeholder values if config.local is missing.
+#
+# Required: This file MUST be owned by root and have mode 0600.
+
+# ==============================
+# AUTO-UPDATE SETTINGS
+# ==============================
+# Enable/disable automatic script updates from GitHub
+# Set to "true" to enable updates, "false" to disable
+AUTO_UPDATE_ENABLED=true
+
+# ==============================
+# ALLOWED DOMAINS FOR IGNOREHOST
+# ==============================
+# Domains whose IP ranges are whitelisted for automatic ignore
+# These are domain names that resolve to legitimate infrastructure
+# REPLACE WITH YOUR OWN DOMAINS
+ALLOWED_DOMAINS = [
+    "your-domain.duckdns.org",
+    "your-domain.mywire.org",
+    "another-domain.duckdns.org",
+    "another-domain.mywire.org"
+]
+
+# ==============================
+# ALLOWED HOSTS FOR IGNOREHOST
+# ==============================
+# Host providers (network blocks) that are whitelisted regardless of domain
+# Use .example.tld format for provider-level filtering
+# REPLACE WITH YOUR OWN PROVIDER DOMAINS
+ALLOWED_HOSTS = [
+    ".static.your-isp.it",
+    ".retail.your-fiber.it",
+    ".pool-bba.your-provider.it"
+]
+
+# ==============================
+# SECRETS (use secrets.env for real secrets)
+# ==============================
+# Telegram and Fail2Ban-UI callback secrets are injected from secrets.env at deploy time:
+#   TELEGRAM_BOT_TOKEN_NOTIFY=__TELEGRAM_BOT_TOKEN_NOTIFY__
+#   TELEGRAM_CHAT_ID_NOTIFY=__TELEGRAM_CHAT_ID_NOTIFY__
+#   TELEGRAM_BOT_TOKEN_IGNOREHOST=__TELEGRAM_BOT_TOKEN_IGNOREHOST__
+#   TELEGRAM_CHAT_ID_IGNOREHOST=__TELEGRAM_CHAT_ID_IGNOREHOST__
+#   FAIL2BAN_UI_CALLBACK_SECRET=__FAIL2BAN_UI_CALLBACK_SECRET__
+#
+# This file is for configuration, NOT for secrets. Secrets are managed separately.

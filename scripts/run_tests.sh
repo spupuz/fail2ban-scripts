@@ -8,7 +8,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-tests=(scripts/test_*.sh)
+tests=(local_tests/test_*.sh)
 if [[ ! -e "${tests[0]}" ]]; then
   echo "No tests found in scripts/test_*.sh"
   exit 1
