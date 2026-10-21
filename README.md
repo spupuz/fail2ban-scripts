@@ -130,6 +130,10 @@ The deploy → redact round trip is verified byte-for-byte by `local_tests/test_
 - Merge PR #2: Sentinel HTML injection fixes and FCrDNS checks
 - Bumped VERSION to 0.1.2
 
+### v0.2.0
+
+- Merge 2 PRs: concurrent network lookups, HTML escaping + FCrDNS checks
+
 ### v0.1.0
 
 - Initial import of custom fail2ban scripts and configuration.
