@@ -4,6 +4,7 @@ import re
 import socket
 import json
 import urllib.request
+import threading
 from fail2ban.server.ipdns import DNSUtils, IPAddr
 import datetime
 
@@ -132,11 +133,26 @@ def send_telegram_notification(ip, matching_domain, is_domain):
     """Send fancy formatted Telegram notification"""
     url = f"https://api.telegram.org/bot{TELEGRAM_API_TOKEN}/sendMessage"
 
-    reverse_dns = reverse_dns_lookup(ip)
-    geo_location = get_geo_location(ip)
+    # Fetch reverse DNS and Geo IP concurrently to reduce latency
+    results = {"reverse_dns": "Not available", "geo_location": "Not available"}
+
+    def fetch_rdns():
+        results["reverse_dns"] = reverse_dns_lookup(ip)
+
+    def fetch_geo():
+        results["geo_location"] = get_geo_location(ip)
+
+    t_rdns = threading.Thread(target=fetch_rdns)
+    t_geo = threading.Thread(target=fetch_geo)
+
+    t_rdns.start()
+    t_geo.start()
+
+    t_rdns.join()
+    t_geo.join()
     
     # Format the fancy message
-    message = format_message(ip, matching_domain, is_domain, reverse_dns, geo_location)
+    message = format_message(ip, matching_domain, is_domain, results["reverse_dns"], results["geo_location"])
 
     # Prepare data with HTML parsing
     data = {
