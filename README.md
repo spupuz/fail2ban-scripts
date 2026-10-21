@@ -124,6 +124,12 @@ The deploy → redact round trip is verified byte-for-byte by `local_tests/test_
 
 - Remove obsolete historical scripts `scripts/fail2ban-telegram_old.sh` and `scripts/ignorehost_old.sh` and all references.
 
+### v0.1.2
+
+- Merge PR #1: Bolt concurrent network lookups in ignorehost.sh
+- Merge PR #2: Sentinel HTML injection fixes and FCrDNS checks
+- Bumped VERSION to 0.1.2
+
 ### v0.1.0
 
 - Initial import of custom fail2ban scripts and configuration.
