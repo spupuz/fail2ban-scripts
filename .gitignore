@@ -11,6 +11,12 @@ db/
 run/
 .fail2ban-ui-operations/
 
+# Runtime artifacts of scripts/version_check.sh (never commit)
+.last_update_check
+.update_log
+.version_check.log
+.disable_auto_update
+
 # Editor / OS
 *.swp
 *~
