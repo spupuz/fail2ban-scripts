@@ -1,0 +1,4 @@
+## 2026-10-21 - [Reverse DNS Spoofing & HTML Injection]
+**Vulnerability:** Found a Reverse DNS spoofing vulnerability where attackers could bypass the whitelist by spoofing their PTR records to match `ALLOWED_HOSTS`. Also found a DoS vulnerability where attacker-controlled fields (like reverse DNS or geo-location) were directly injected into Telegram HTML messages and curl command parameters.
+**Learning:** External unverified sources (like PTR records) shouldn't be implicitly trusted for allow-listing. Direct interpolation of external input into HTML parsing APIs and shell parameters exposes injection vectors.
+**Prevention:** Use Forward-Confirmed reverse DNS (FCrDNS) checks to verify domain ownership. Always escape user-provided inputs (`html.escape` in Python, or custom sanitize in Bash) before injecting them into HTML payloads. Use JSON payloads (`jq`) over query-string/parameter manipulation (`-d`) to prevent HTTP parameter injection.

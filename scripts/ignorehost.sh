@@ -4,6 +4,7 @@ import re
 import socket
 import json
 import urllib.request
+import html
 from fail2ban.server.ipdns import DNSUtils, IPAddr
 import datetime
 
@@ -69,7 +70,11 @@ def is_allowed_ip(ip):
     """Check if IP belongs to allowed domains"""
     for domain in ALLOWED_DOMAINS:
         try:
-            allowed_ips = socket.gethostbyname_ex(domain)[2]
+            # getaddrinfo supports both IPv4 and IPv6
+            # It returns a list of tuples: (family, type, proto, canonname, sockaddr)
+            # where sockaddr is a tuple (address, port) for IPv4 or (address, port, flow info, scope id) for IPv6
+            addr_info = socket.getaddrinfo(domain, None)
+            allowed_ips = [info[4][0] for info in addr_info]
             if ip in allowed_ips:
                 return domain
         except:
@@ -86,7 +91,14 @@ def is_allowed_host(ip):
         if m:
             domain = m.group('domain')
             if domain in ALLOWED_HOSTS:
-                return True
+                # Forward-Confirmed reverse DNS (FCrDNS) check supporting IPv4 and IPv6
+                try:
+                    addr_info = socket.getaddrinfo(host, None)
+                    resolved_ips = [info[4][0] for info in addr_info]
+                    if ip in resolved_ips:
+                        return True
+                except Exception:
+                    pass
     return False
 
 def reverse_dns_lookup(ip):
@@ -135,8 +147,12 @@ def send_telegram_notification(ip, matching_domain, is_domain):
     reverse_dns = reverse_dns_lookup(ip)
     geo_location = get_geo_location(ip)
     
+    # Escape user-controlled inputs to prevent HTML injection DoS
+    safe_reverse_dns = html.escape(reverse_dns)
+    safe_geo_location = html.escape(geo_location)
+
     # Format the fancy message
-    message = format_message(ip, matching_domain, is_domain, reverse_dns, geo_location)
+    message = format_message(ip, matching_domain, is_domain, safe_reverse_dns, safe_geo_location)
 
     # Prepare data with HTML parsing
     data = {
