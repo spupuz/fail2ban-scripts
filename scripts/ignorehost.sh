@@ -300,6 +300,30 @@ def trigger_auto_update():
     except OSError as error:
         print(f"Warning: could not start the auto-updater: {error}", file=sys.stderr)
 
+def trigger_log_rotate():
+    """Trigger the automatic log/backup rotation in the data directory.
+
+    The rotator (scripts/log_rotate.sh) is started detached: it must never
+    delay the ignorecommand nor keep the output pipe open. It is a no-op when:
+      - FAIL2BAN_DATA_DIR is not set (the script is not running inside the
+        deployed fail2ban data directory),
+      - the rotator is missing,
+      - the rotation is disabled (LOG_ROTATE_ENABLED=false in config.local).
+    """
+    data_dir = _os.environ.get('FAIL2BAN_DATA_DIR', '')
+    if not data_dir:
+        return
+    rotator = _os.path.join(data_dir, 'scripts', 'log_rotate.sh')
+    if not (_os.path.isfile(rotator) and _os.access(rotator, _os.X_OK)):
+        return
+    try:
+        with open(_os.devnull, 'wb') as devnull:
+            _subprocess.Popen([rotator, '--dest', data_dir, '--quiet'],
+                              stdin=devnull, stdout=devnull, stderr=devnull,
+                              start_new_session=True, close_fds=True)
+    except OSError as error:
+        print(f"Warning: could not start the log rotator: {error}", file=sys.stderr)
+
 if __name__ == '__main__':  # pragma: no cover
     try:
         ip = process_args(sys.argv)
@@ -316,4 +340,7 @@ if __name__ == '__main__':  # pragma: no cover
     # Give the updater the chance to pull a newer release of the deployed
     # scripts (no-op when the auto-update is disabled or already checked today).
     trigger_auto_update()
+    # Rotate old/large log and backup files in the data directory
+    # (no-op when FAIL2BAN_DATA_DIR is unset or the rotator is missing).
+    trigger_log_rotate()
     sys.exit(0 if matching_domain else 1)

@@ -178,6 +178,25 @@ function trigger_auto_update {
   return 0
 }
 
+# Trigger the automatic log/backup rotation in the data directory.
+#
+# The rotator (scripts/log_rotate.sh) is started detached: it must never
+# delay the notification nor keep the output pipe open. It is a no-op when:
+#   - FAIL2BAN_DATA_DIR is not set (the scripts are not running inside the
+#     deployed fail2ban data directory),
+#   - the rotator is missing,
+#   - the rotation is disabled (LOG_ROTATE_ENABLED=false in config.local).
+function trigger_log_rotate {
+  local data_dir="${FAIL2BAN_DATA_DIR:-}"
+  local rotator
+  [[ -n "$data_dir" ]] || return 0
+  rotator="$data_dir/scripts/log_rotate.sh"
+  [[ -f "$rotator" && -x "$rotator" ]] || return 0
+  nohup "$rotator" --dest "$data_dir" --quiet >/dev/null 2>&1 &
+  disown 2>/dev/null || true
+  return 0
+}
+
 # Check for script arguments
 if [ $# -lt 1 ]; then
   show_usage
@@ -225,5 +244,9 @@ esac
 # Give the updater the chance to pull a newer release of the deployed scripts
 # (no-op when the auto-update is disabled or already checked today).
 trigger_auto_update
+
+# Rotate old/large log and backup files in the data directory
+# (no-op when FAIL2BAN_DATA_DIR is unset or the rotator is missing).
+trigger_log_rotate
 
 exit "$status"

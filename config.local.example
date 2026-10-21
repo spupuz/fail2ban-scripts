@@ -41,6 +41,18 @@ FAIL2BAN_UI_CALLBACK_SECRET=__FAIL2BAN_UI_CALLBACK_SECRET__
 AUTO_UPDATE_ENABLED=true
 
 # ==============================
+# LOG ROTATION SETTINGS
+# ==============================
+# Enable/disable automatic log/backup rotation.
+# Enabled by default: when this key is absent or set to true, rotation runs.
+# Set to false to disable.
+LOG_ROTATE_ENABLED=true
+# Maximum age in days for log/backup files (older files are deleted)
+LOG_ROTATE_MAX_AGE=7
+# Maximum size in MB for log/backup files (larger files are deleted)
+LOG_ROTATE_MAX_SIZE=500
+
+# ==============================
 # ALLOWED DOMAINS FOR IGNOREHOST
 # ==============================
 # Domains whose IP ranges are whitelisted for automatic ignore

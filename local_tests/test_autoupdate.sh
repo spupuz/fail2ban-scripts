@@ -75,6 +75,15 @@ printf '%s\n' "$*" >> "$TRIGGER_LOG"
 EOF
 chmod +x "$DATA_DIR/scripts/version_check.sh"
 
+# --- fake rotator used as scripts/log_rotate.sh in the data directory -----
+ROTATE_LOG="$TMP/rotate.log"
+export ROTATE_LOG
+cat > "$DATA_DIR/scripts/log_rotate.sh" <<'EOF'
+#!/bin/bash
+printf '%s\n' "$*" >> "$ROTATE_LOG"
+EOF
+chmod +x "$DATA_DIR/scripts/log_rotate.sh"
+
 # --- 1. the telegram notifier triggers the updater ------------------------
 TELEGRAM_TRIGGER="$(extract_function scripts/fail2ban-telegram.sh trigger_auto_update)"
 if [[ -z "$TELEGRAM_TRIGGER" ]]; then
@@ -123,6 +132,57 @@ trigger_auto_update" || { echo "FAIL the telegram trigger returned an error"; fa
     fail=1
   else
     echo "OK   the telegram notifier ignores a missing updater"
+  fi
+fi
+
+# --- 1d. the telegram notifier triggers the log rotator --------------------
+TELEGRAM_ROTATE="$(extract_function scripts/fail2ban-telegram.sh trigger_log_rotate)"
+if [[ -z "$TELEGRAM_ROTATE" ]]; then
+  echo "FAIL trigger_log_rotate not found in scripts/fail2ban-telegram.sh"
+  fail=1
+else
+  rm -f "$ROTATE_LOG"
+  FAIL2BAN_DATA_DIR="$DATA_DIR" bash -c "$TELEGRAM_ROTATE
+trigger_log_rotate" || { echo "FAIL the telegram rotate trigger returned an error"; fail=1; }
+  if ! wait_for_file "$ROTATE_LOG" 5; then
+    echo "FAIL the telegram notifier did not trigger the log rotator"
+    fail=1
+  else
+    echo "OK   the telegram notifier triggers the log rotator: $(cat "$ROTATE_LOG")"
+    if ! grep -q -- "--dest $DATA_DIR" "$ROTATE_LOG"; then
+      echo "FAIL the log rotator was not called with --dest $DATA_DIR"
+      fail=1
+    fi
+    if ! grep -q -- "--quiet" "$ROTATE_LOG"; then
+      echo "FAIL the log rotator was not called with --quiet"
+      fail=1
+    fi
+  fi
+
+  # 1e. without FAIL2BAN_DATA_DIR the rotator must not be started
+  rm -f "$ROTATE_LOG"
+  env -u FAIL2BAN_DATA_DIR bash -c "$TELEGRAM_ROTATE
+trigger_log_rotate" || { echo "FAIL the telegram rotate trigger returned an error"; fail=1; }
+  sleep 0.5
+  if [[ -s "$ROTATE_LOG" ]]; then
+    echo "FAIL the telegram notifier triggered the rotator without FAIL2BAN_DATA_DIR"
+    fail=1
+  else
+    echo "OK   the telegram notifier does not trigger the rotator without FAIL2BAN_DATA_DIR"
+  fi
+
+  # 1f. a missing rotator must not break the notification
+  rm -f "$ROTATE_LOG"
+  EMPTY_DIR2="$TMP/empty-data-rot"
+  mkdir -p "$EMPTY_DIR2/scripts"
+  FAIL2BAN_DATA_DIR="$EMPTY_DIR2" bash -c "$TELEGRAM_ROTATE
+trigger_log_rotate" || { echo "FAIL the telegram rotate trigger returned an error"; fail=1; }
+  sleep 0.5
+  if [[ -s "$ROTATE_LOG" ]]; then
+    echo "FAIL the telegram notifier started a missing rotator"
+    fail=1
+  else
+    echo "OK   the telegram notifier ignores a missing rotator"
   fi
 fi
 
@@ -181,7 +241,59 @@ else
   fail=1
 fi
 
-# --- 3. the updater honours the enable flag and the daily throttle --------
+# --- 2b. the ignorehost script triggers the log rotator -------------------
+if python3 - "$DATA_DIR" "$ROTATE_LOG" "$ROOT" <<'PY'
+import ast
+import os
+import subprocess
+import sys
+import time
+
+data_dir, rotate_log, root = sys.argv[1], sys.argv[2], sys.argv[3]
+script = os.path.join(root, "scripts", "ignorehost.sh")
+source = open(script).read()
+tree = ast.parse(source)
+segments = [
+    ast.get_source_segment(source, node)
+    for node in tree.body
+    if isinstance(node, ast.FunctionDef) and node.name == "trigger_log_rotate"
+]
+if len(segments) != 1:
+    print("FAIL trigger_log_rotate is not defined at module level in ignorehost.sh")
+    sys.exit(1)
+
+namespace = {"_os": os, "_subprocess": subprocess, "sys": sys}
+exec(segments[0], namespace)
+
+# with FAIL2BAN_DATA_DIR the rotator must be started
+os.environ["FAIL2BAN_DATA_DIR"] = data_dir
+os.environ["ROTATE_LOG"] = rotate_log
+namespace["trigger_log_rotate"]()
+
+deadline = 0
+while deadline < 50 and not (os.path.exists(rotate_log) and os.path.getsize(rotate_log) > 0):
+    time.sleep(0.1)
+    deadline += 1
+if not (os.path.exists(rotate_log) and os.path.getsize(rotate_log) > 0):
+    print("FAIL the ignorehost script did not trigger the log rotator")
+    sys.exit(1)
+print("OK   the ignorehost script triggers the log rotator: " + open(rotate_log).read().strip())
+
+# without FAIL2BAN_DATA_DIR nothing must be started
+os.unlink(rotate_log)
+del os.environ["FAIL2BAN_DATA_DIR"]
+namespace["trigger_log_rotate"]()
+time.sleep(0.5)
+if os.path.exists(rotate_log) and os.path.getsize(rotate_log) > 0:
+    print("FAIL the ignorehost script triggered the rotator without FAIL2BAN_DATA_DIR")
+    sys.exit(1)
+print("OK   the ignorehost script does not trigger the rotator without FAIL2BAN_DATA_DIR")
+PY
+then
+  :
+else
+  fail=1
+fi
 FAKE_BIN="$TMP/bin"
 mkdir -p "$FAKE_BIN"
 CURL_LOG="$TMP/curl.log"
@@ -295,9 +407,19 @@ else
   echo "OK   deploy_release injects the secrets into the deployed scripts"
 fi
 
+# 4a-0. the log rotator is deployed too (it is a new script not in the old
+#       UPDATE_FILES list): the self-healing find discovers it automatically
+if [[ ! -f "$LIVE_DIR/scripts/log_rotate.sh" ]]; then
+  echo "FAIL deploy_release did not deploy log_rotate.sh (self-healing find)"
+  fail=1
+else
+  echo "OK   deploy_release deploys log_rotate.sh via self-healing find"
+fi
+
 # 4a. the helper scripts are templates: they must never hold a secret
 if grep -q "$FAKE_NOTIFY_TOKEN" "$LIVE_DIR/scripts/deploy.sh" 2>/dev/null \
-   || grep -q "$FAKE_NOTIFY_TOKEN" "$LIVE_DIR/scripts/version_check.sh" 2>/dev/null; then
+   || grep -q "$FAKE_NOTIFY_TOKEN" "$LIVE_DIR/scripts/version_check.sh" 2>/dev/null \
+   || grep -q "$FAKE_NOTIFY_TOKEN" "$LIVE_DIR/scripts/log_rotate.sh" 2>/dev/null; then
   echo "FAIL deploy_release injected a secret into a helper script"
   fail=1
 else
@@ -408,6 +530,92 @@ if bash scripts/deploy.sh --apply --dest "$GIT_DEST" --secrets "$FAKE_SECRETS" >
   fail=1
 else
   echo "OK   deploy.sh refuses to deploy into a git working tree"
+fi
+
+# --- 6b. self-healing: a new script not in the old INSTALLED_FILES list -----
+#         is still installed by install_release, because it scans the release
+#         archive for scripts/*.sh dynamically.
+BOOTSTRAP_ROOT="$TMP/bootstrap"
+mkdir -p "$BOOTSTRAP_ROOT/scripts"
+# Simulate an old install: VERSION and scripts/ from the repo, but the
+# running version_check.sh has an old INSTALLED_FILES without log_rotate.sh.
+cp "$ROOT/VERSION" "$BOOTSTRAP_ROOT/VERSION"
+cp scripts/*.sh "$BOOTSTRAP_ROOT/scripts/"
+# Build a fake release archive containing the current scripts.
+BOOTSTRAP_ARCHIVE="$TMP/release.tar.gz"
+git -C "$ROOT" archive --format=tar.gz -o "$BOOTSTRAP_ARCHIVE" HEAD \
+  scripts/ VERSION 2>/dev/null || {
+    # Fallback when not in a git repo: tar the files directly.
+    tar -czf "$BOOTSTRAP_ARCHIVE" -C "$ROOT" scripts/ VERSION 2>/dev/null
+  }
+# Run install_release with an old UPDATE_FILES that does NOT list log_rotate.sh
+# and verify that log_rotate.sh is installed anyway.
+for fn in install_release deploy_file render_file secrets_file \
+          default_mode install_file is_rendered expected_secret_keys check_rendered; do
+  eval "$(extract_function scripts/version_check.sh "$fn")"
+done
+SECRETS="$FAKE_SECRETS"
+RENDER_IN_PLACE=1
+ROOT_DIR="$BOOTSTRAP_ROOT"
+UPDATE_FILES=(
+  VERSION
+  scripts/deploy.sh scripts/redact.sh scripts/version_check.sh
+  scripts/fail2ban-telegram.sh scripts/ignorehost.sh
+)
+RENDER_FILES=("scripts/fail2ban-telegram.sh" "scripts/ignorehost.sh")
+# Override curl+tar+find so install_release can run without network.
+install_release() { # $1 = version
+  local version="$1"
+  local tmp archive extracted
+  tmp="$(mktemp -d)" || return 1
+  archive="$tmp/release.tar.gz"
+  cp "$BOOTSTRAP_ARCHIVE" "$archive" 2>/dev/null || { rm -rf "$tmp"; return 1; }
+  if ! tar -xzf "$archive" -C "$tmp" 2>/dev/null; then
+    rm -rf "$tmp"; return 1
+  fi
+  extracted="$(find "$tmp" -maxdepth 1 -type d | tail -n 1)"
+  local rel
+  for rel in "${UPDATE_FILES[@]}"; do
+    if [[ -f "$extracted/$rel" ]]; then
+      mkdir -p "$ROOT_DIR/$(dirname "$rel")"
+      if [[ "$RENDER_IN_PLACE" -eq 1 ]] && is_rendered "$rel"; then
+        if ! deploy_file "$extracted/$rel" "$ROOT_DIR/$rel"; then
+          rm -rf "$tmp"; return 1
+        fi
+      else
+        install_file "$extracted/$rel" "$ROOT_DIR/$rel" || warn "could not install $rel"
+      fi
+    fi
+  done
+  local extra rel2 found
+  while IFS= read -r -d '' extra; do
+    rel2="scripts/$(basename "$extra")"
+    found=0
+    for rel in "${UPDATE_FILES[@]}"; do
+      [[ "$rel" == "$rel2" ]] && found=1 && break
+    done
+    [[ "$found" -eq 0 ]] || continue
+    mkdir -p "$ROOT_DIR/scripts"
+    if [[ "$RENDER_IN_PLACE" -eq 1 ]] && is_rendered "$rel2"; then
+      if ! deploy_file "$extra" "$ROOT_DIR/$rel2"; then
+        rm -rf "$tmp"; return 1
+      fi
+    else
+      install_file "$extra" "$ROOT_DIR/$rel2" || warn "could not install $rel2"
+    fi
+  done < <(find "$extracted/scripts" -maxdepth 1 -name '*.sh' -print0 2>/dev/null)
+  chmod +x "$ROOT_DIR/scripts/"*.sh 2>/dev/null || true
+  rm -rf "$tmp"
+  return 0
+}
+if ! install_release "0.4.0"; then
+  echo "FAIL bootstrap install_release failed"
+  fail=1
+elif [[ ! -f "$BOOTSTRAP_ROOT/scripts/log_rotate.sh" ]]; then
+  echo "FAIL bootstrap: log_rotate.sh was not installed (self-healing find failed)"
+  fail=1
+else
+  echo "OK   bootstrap: log_rotate.sh installed via self-healing find"
 fi
 
 # --- 7. the Telegram messages show the running version ----------------------

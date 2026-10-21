@@ -59,6 +59,7 @@ SCRIPT_FILES=(
   "scripts/deploy.sh"
   "scripts/redact.sh"
   "scripts/version_check.sh"
+  "scripts/log_rotate.sh"
   "scripts/fail2ban-telegram.sh"
   "scripts/ignorehost.sh"
 )
@@ -82,6 +83,7 @@ TEMPLATE_FILES=(
   "scripts/deploy.sh"
   "scripts/redact.sh"
   "scripts/version_check.sh"
+  "scripts/log_rotate.sh"
 )
 
 is_template() { # $1 = path relative to the repository root

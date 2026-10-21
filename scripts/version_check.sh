@@ -12,6 +12,9 @@
 #     deployment is self-contained: the secrets are injected here, without
 #     calling scripts/deploy.sh, so that an update always works whatever
 #     version of the deploy script is currently installed.
+#   - The installer discovers scripts/*.sh dynamically from the downloaded
+#     release, so a new script added in a release is installed even when the
+#     currently running version_check.sh does not list it yet (self-healing).
 #
 # The updater is meant to run from the directory that holds the deployed files
 # (the fail2ban data directory): the telegram/ignore scripts call it with
@@ -69,6 +72,7 @@ INSTALLED_FILES=(
   "scripts/deploy.sh"
   "scripts/redact.sh"
   "scripts/version_check.sh"
+  "scripts/log_rotate.sh"
   "scripts/fail2ban-telegram.sh"
   "scripts/ignorehost.sh"
 )
@@ -385,6 +389,30 @@ install_release() { # $1 = version
       fi
     fi
   done
+
+  # Also install any scripts/*.sh present in the release but not listed in
+  # UPDATE_FILES: a new script added in this release may not be known to the
+  # currently running version_check.sh (which may be older). This makes the
+  # updater self-healing without requiring a manual deploy for new scripts.
+  local extra rel2 found
+  while IFS= read -r -d '' extra; do
+    rel2="scripts/$(basename "$extra")"
+    found=0
+    for rel in "${UPDATE_FILES[@]}"; do
+      [[ "$rel" == "$rel2" ]] && found=1 && break
+    done
+    [[ "$found" -eq 0 ]] || continue
+    mkdir -p "$ROOT_DIR/scripts"
+    if [[ "$RENDER_IN_PLACE" -eq 1 ]] && is_rendered "$rel2"; then
+      if ! deploy_file "$extra" "$ROOT_DIR/$rel2"; then
+        rm -rf "$tmp"
+        return 1
+      fi
+    else
+      install_file "$extra" "$ROOT_DIR/$rel2" || warn "could not install $rel2"
+    fi
+  done < <(find "$extracted/scripts" -maxdepth 1 -name '*.sh' -print0 2>/dev/null)
+
   chmod +x "$ROOT_DIR/scripts/"*.sh 2>/dev/null || true
 
   rm -rf "$tmp"
@@ -417,6 +445,29 @@ deploy_release() { # $1 = destination directory
         fi
       fi
     done
+
+    # Also deploy any scripts/*.sh present in ROOT_DIR but not listed in
+    # UPDATE_FILES (same self-healing rationale as install_release).
+    local extra rel2 found
+    while IFS= read -r -d '' extra; do
+      rel2="scripts/$(basename "$extra")"
+      found=0
+      for rel in "${UPDATE_FILES[@]}"; do
+        [[ "$rel" == "$rel2" ]] && found=1 && break
+      done
+      [[ "$found" -eq 0 ]] || continue
+      if is_rendered "$rel2"; then
+        if ! deploy_file "$extra" "$dest/$rel2"; then
+          fail "could not deploy $rel2 into $dest"
+          return 1
+        fi
+      else
+        if ! install_file "$extra" "$dest/$rel2"; then
+          fail "could not deploy $rel2 into $dest"
+          return 1
+        fi
+      fi
+    done < <(find "$ROOT_DIR/scripts" -maxdepth 1 -name '*.sh' -print0 2>/dev/null)
   fi
 
   # fail2ban only needs a reload when its configuration changed

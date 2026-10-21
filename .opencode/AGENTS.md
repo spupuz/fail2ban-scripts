@@ -59,6 +59,7 @@ bash scripts/run_tests.sh
 | `local_tests/test_configs.sh` | INI sections, `failregex` + `<HOST>` + regex compiles, `/etc/fail2ban/scripts/*` cross refs, executable bits, placeholders, semver `VERSION` |
 | `local_tests/test_secrets.sh` | leak scan (Telegram tokens, chat IDs, callback secret, high-entropy blobs, private keys) |
 | `local_tests/test_deploy.sh` | `deploy.sh` + `redact.sh` round trip with fake secrets, dry-run safety, placeholder-secret rejection |
+| `local_tests/test_log_rotate.sh` | `log_rotate.sh` age/size deletion, `--dry-run`, `--quiet`, `LOG_ROTATE_ENABLED=false`, config.local settings, no-op on missing dir, config/VERSION never touched |
 | `local_tests/test_no_host_paths.sh` | rejects any host-specific absolute path |
 | `local_tests/test_skill_sync.sh` | `.agents/skills/*` and `.opencode/commands/*` stay in sync |
 | `local_tests/test_yaml.sh` | parses `.github/workflows/*.yml` (PyYAML in CI) |

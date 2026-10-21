@@ -15,6 +15,7 @@ Repository of **custom fail2ban scripts and configuration**.
 | `scripts/deploy.sh` | Copies files to the fail2ban data directory **injecting secrets** from `config.local` (`--scripts-only` to skip the configuration) |
 | `scripts/redact.sh` | Inverse operation: from the live directory to the repo, replacing secrets with placeholders |
 | `scripts/version_check.sh` | Check for updates and auto-install latest releases from GitHub (scripts only, self-contained) |
+| `scripts/log_rotate.sh` | Rotate logs and backups: removes files older than `LOG_ROTATE_MAX_AGE` days or larger than `LOG_ROTATE_MAX_SIZE` MB. Triggered automatically by the notification scripts |
 | `action.d/telegram.local` | Override of the `telegram` action |
 | `action.d/iptables-nft.local` | Override of the `iptables-nft` action |
 | `action.d/ui-custom-action.conf` | Custom action used by Fail2Ban-UI (callback on `127.0.0.1`) |
@@ -88,6 +89,9 @@ All machine-specific settings live in `config.local` (gitignored):
 | `TELEGRAM_CHAT_ID_IGNOREHOST` | Telegram chat ID for ignorehost |
 | `FAIL2BAN_UI_CALLBACK_SECRET` | Fail2Ban-UI callback secret |
 | `AUTO_UPDATE_ENABLED` | Enable/disable auto-update from GitHub (`true`/`false`) |
+| `LOG_ROTATE_ENABLED` | Enable/disable automatic log/backup rotation (`true`/`false`) |
+| `LOG_ROTATE_MAX_AGE` | Maximum age in days for log/backup files (default: 7) |
+| `LOG_ROTATE_MAX_SIZE` | Maximum size in MB for log/backup files (default: 500) |
 | `ALLOWED_DOMAINS` | Domains whitelisted by ignorehost (read at runtime from `<dest>/config.local`) |
 | `ALLOWED_HOSTS` | Host providers whitelisted by ignorehost (read at runtime from `<dest>/config.local`) |
 
@@ -103,7 +107,7 @@ at runtime must never receive the secrets at install time:
 | `scripts/fail2ban-telegram.sh` | **rendered** | the bot token, the chat ID and the UI secret are injected |
 | `scripts/ignorehost.sh` | **rendered** | same |
 | `action.d/*`, `filter.d/*`, `jail.d/*`, `jail.local`, `paths-overrides.local` | **rendered** | they reference the bot token and the UI secret |
-| `scripts/deploy.sh`, `scripts/redact.sh`, `scripts/version_check.sh` | **template** | installed verbatim: they read `config.local` when they run, so they never hold a secret |
+| `scripts/deploy.sh`, `scripts/redact.sh`, `scripts/version_check.sh`, `scripts/log_rotate.sh` | **template** | installed verbatim: they read `config.local` when they run, so they never hold a secret |
 | `VERSION` | **template** | installed verbatim |
 
 The helpers stay secret-free, therefore the automatic update can replace them
@@ -249,6 +253,69 @@ diff -r . /path/to/staging   # review, then commit
 
 The deploy → redact round trip is verified byte-for-byte by `local_tests/test_deploy.sh`.
 
+## Log and backup rotation
+
+The deployed scripts and configuration can generate log files and backups
+that may grow indefinitely. The rotation runs **automatically**: the ban/unban
+and ignore notification scripts (`scripts/fail2ban-telegram.sh`,
+`scripts/ignorehost.sh`) trigger `scripts/log_rotate.sh` after every
+notification, detached, when `FAIL2BAN_DATA_DIR` is set — exactly like the
+[auto-update](#auto-update). Nothing to schedule.
+
+```
+fail2ban ──► scripts/fail2ban-telegram.sh   (ban/unban notification)
+           └► scripts/ignorehost.sh          (ignore notification)
+                 └► scripts/log_rotate.sh --dest <data dir> --quiet
+                       ├─ read LOG_ROTATE_* from config.local
+                       ├─ scan <data dir> for *.log, *.bak, *.tar.gz, *.dump, *.sql
+                       └─ delete files older than max age OR larger than max size
+```
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `LOG_ROTATE_ENABLED` | `true` (enabled when key is absent) | Enable/disable rotation |
+| `LOG_ROTATE_MAX_AGE` | `7` | Maximum age in days (older files are deleted) |
+| `LOG_ROTATE_MAX_SIZE` | `500` | Maximum size in MB (larger files are deleted) |
+
+Settings are read from `config.local` and can be overridden via CLI flags.
+Rotation is **enabled by default**: when `LOG_ROTATE_ENABLED` is missing or
+set to anything other than `false`/`0`/`no`/`off`/`disabled`, the rotation runs.
+
+**Only the data directory root is scanned** (`-maxdepth 1`): `scripts/`,
+`action.d/`, `filter.d/`, `jail.d/`, `config.local`, `VERSION` and
+configuration files are never touched.
+
+### Manual usage
+
+```bash
+# Rotate using config.local defaults (max-age: 7 days, max-size: 500 MB)
+scripts/log_rotate.sh --dest /path/to/fail2ban/data
+
+# Custom maximum age and size
+scripts/log_rotate.sh --dest /path/to/fail2ban/data --max-age 30 --max-size 100
+
+# Scan a specific subdirectory within the data dir
+scripts/log_rotate.sh --dest /path/to/fail2ban/data --log-dir /path/to/fail2ban/data/logs
+
+# Dry-run: show what would be deleted without deleting
+scripts/log_rotate.sh --dest /path/to/fail2ban/data --dry-run
+```
+
+| Option | Description |
+|--------|-------------|
+| `--dest DIR` | Target fail2ban data directory (defaults to `$FAIL2BAN_DATA_DIR` or `/data`) |
+| `--max-age DAYS` | Override `LOG_ROTATE_MAX_AGE` (default: 7) |
+| `--max-size MB` | Override `LOG_ROTATE_MAX_SIZE` (default: 500) |
+| `--log-dir DIR` | Scan a specific directory instead of the data directory root |
+| `--secrets FILE` | Use an alternative config.local |
+| `--dry-run` | Show what would be deleted without deleting |
+| `--quiet` | No output unless errors occur |
+| `--force` | Ignore `LOG_ROTATE_ENABLED` |
+
+Files are removed if they are **older than the max age OR larger than the max
+size**. The rotation is idempotent and safe to run concurrently (deleting a
+non-existent file is not an error).
+
 ## CI and release
 
 - **`.github/workflows/ci.yml`** — runs `scripts/run_tests.sh` on every push and PR to `main`.
@@ -263,6 +330,26 @@ The deploy → redact round trip is verified byte-for-byte by `local_tests/test_
 - **MAJOR** — breaking changes (removed jails, changed behavior)
 
 ## Changelog
+
+### v0.4.0
+
+- **Feature**: automatic log and backup rotation. The ban/unban and ignore
+  notification scripts (`scripts/fail2ban-telegram.sh`, `scripts/ignorehost.sh`)
+  now trigger `scripts/log_rotate.sh` after every notification, detached, when
+  `FAIL2BAN_DATA_DIR` is set — exactly like the auto-update. Nothing to
+  schedule.
+- `scripts/log_rotate.sh` removes log/backup files older than
+  `LOG_ROTATE_MAX_AGE` days (default: 7) or larger than `LOG_ROTATE_MAX_SIZE`
+  MB (default: 500). Only the data directory root is scanned (`-maxdepth 1`):
+  scripts, configuration files, `config.local` and `VERSION` are never
+  touched. The rotation is idempotent and safe to run concurrently.
+- New `LOG_ROTATE_ENABLED`, `LOG_ROTATE_MAX_AGE`, `LOG_ROTATE_MAX_SIZE`
+  settings in `config.local`. CLI flags (`--max-age`, `--max-size`,
+  `--log-dir`, `--secrets`, `--dry-run`, `--quiet`, `--force`) override the
+  config file.
+- `scripts/log_rotate.sh` is deployed as a **template** (verbatim, never
+  holding a secret): it reads `config.local` at runtime, like `deploy.sh`,
+  `redact.sh` and `version_check.sh`.
 
 ### v0.3.0
 
