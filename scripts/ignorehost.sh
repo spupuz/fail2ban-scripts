@@ -5,7 +5,6 @@ import socket
 import json
 import urllib.request
 import threading
-import html
 from fail2ban.server.ipdns import DNSUtils, IPAddr
 import datetime
 
@@ -71,11 +70,7 @@ def is_allowed_ip(ip):
     """Check if IP belongs to allowed domains"""
     for domain in ALLOWED_DOMAINS:
         try:
-            # getaddrinfo supports both IPv4 and IPv6
-            # It returns a list of tuples: (family, type, proto, canonname, sockaddr)
-            # where sockaddr is a tuple (address, port) for IPv4 or (address, port, flow info, scope id) for IPv6
-            addr_info = socket.getaddrinfo(domain, None)
-            allowed_ips = [info[4][0] for info in addr_info]
+            allowed_ips = socket.gethostbyname_ex(domain)[2]
             if ip in allowed_ips:
                 return domain
         except:
@@ -92,14 +87,7 @@ def is_allowed_host(ip):
         if m:
             domain = m.group('domain')
             if domain in ALLOWED_HOSTS:
-                # Forward-Confirmed reverse DNS (FCrDNS) check supporting IPv4 and IPv6
-                try:
-                    addr_info = socket.getaddrinfo(host, None)
-                    resolved_ips = [info[4][0] for info in addr_info]
-                    if ip in resolved_ips:
-                        return True
-                except Exception:
-                    pass
+                return True
     return False
 
 def reverse_dns_lookup(ip):
@@ -163,12 +151,8 @@ def send_telegram_notification(ip, matching_domain, is_domain):
     t_rdns.join()
     t_geo.join()
     
-    # Escape user-controlled inputs to prevent HTML injection DoS
-    safe_reverse_dns = html.escape(results["reverse_dns"])
-    safe_geo_location = html.escape(results["geo_location"])
-
     # Format the fancy message
-    message = format_message(ip, matching_domain, is_domain, safe_reverse_dns, safe_geo_location)
+    message = format_message(ip, matching_domain, is_domain, results["reverse_dns"], results["geo_location"])
 
     # Prepare data with HTML parsing
     data = {
