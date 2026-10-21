@@ -1,6 +1,9 @@
 #!/bin/bash
 # Deploy the fail2ban custom scripts/config into a fail2ban data directory,
-# injecting the real secrets from config.local into the __PLACEHOLDER__ tokens.
+# injecting the real secrets from config.local into the placeholder tokens.
+# The helper scripts (deploy.sh, redact.sh, version_check.sh) are templates:
+# they are copied as they are and read the secrets from config.local when they
+# run, so they never hold a secret themselves.
 # No host path is baked in: the destination must always be given explicitly.
 #
 # Usage:
@@ -8,15 +11,17 @@
 #   scripts/deploy.sh --dest DIR --apply         # write the files to DIR
 #   scripts/deploy.sh --dest DIR --apply --secrets FILE
 #   scripts/deploy.sh --dest DIR --secrets FILE  (defaults to ./config.local)
+#   scripts/deploy.sh --dest DIR --apply --scripts-only  (scripts only, no config)
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEST=""
 SECRETS="$REPO_ROOT/config.local"
 APPLY=0
+SCRIPTS_ONLY=0
 
 usage() {
-  sed -n '2,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit "${1:-0}"
 }
 
@@ -25,6 +30,7 @@ while [[ $# -gt 0 ]]; do
     --apply) APPLY=1; shift ;;
     --dest) DEST="${2:?--dest requires a path}"; shift 2 ;;
     --secrets) SECRETS="${2:?--secrets requires a path}"; shift 2 ;;
+    --scripts-only) SCRIPTS_ONLY=1; shift ;;
     -h|--help) usage 0 ;;
     *) echo "Unknown option: $1" >&2; usage 1 ;;
   esac
@@ -35,10 +41,29 @@ if [[ -z "$DEST" ]]; then
   usage 1
 fi
 
+# Refuse to inject the secrets into a git checkout: the rendered files would
+# carry the real credentials and could be committed by accident.
+if [[ -d "$DEST/.git" ]]; then
+  echo "ERROR: refusing to deploy into the git working tree $DEST." >&2
+  echo "The deployed files contain the real secrets: deploy into the fail2ban data directory." >&2
+  exit 1
+fi
+
 # Files deployed, mirroring the repository layout (relative to REPO_ROOT).
-FILES=(
+# The scripts and the configuration are kept apart on purpose: the automatic
+# update only refreshes the scripts (--scripts-only), because jail.local is
+# managed by the Fail2Ban-UI and the other configuration files change the
+# behaviour of the running service.
+SCRIPT_FILES=(
+  "VERSION"
+  "scripts/deploy.sh"
+  "scripts/redact.sh"
+  "scripts/version_check.sh"
   "scripts/fail2ban-telegram.sh"
   "scripts/ignorehost.sh"
+)
+
+CONFIG_FILES=(
   "action.d/telegram.local"
   "action.d/iptables-nft.local"
   "action.d/ui-custom-action.conf"
@@ -47,6 +72,31 @@ FILES=(
   "jail.local"
   "paths-overrides.local"
 )
+
+# Files that are templates: they are deployed exactly as they are and never
+# receive the secret values. The helper scripts read the secrets from
+# config.local when they run, so they never hold a secret themselves. Every
+# other file is rendered: it may contain placeholder tokens for the secrets.
+TEMPLATE_FILES=(
+  "VERSION"
+  "scripts/deploy.sh"
+  "scripts/redact.sh"
+  "scripts/version_check.sh"
+)
+
+is_template() { # $1 = path relative to the repository root
+  local rel
+  for rel in "${TEMPLATE_FILES[@]}"; do
+    [[ "$rel" == "$1" ]] && return 0
+  done
+  return 1
+}
+
+if [[ "$SCRIPTS_ONLY" -eq 1 ]]; then
+  FILES=("${SCRIPT_FILES[@]}")
+else
+  FILES=("${SCRIPT_FILES[@]}" "${CONFIG_FILES[@]}")
+fi
 
 if [[ ! -f "$SECRETS" ]]; then
   echo "ERROR: config file not found: $SECRETS" >&2
@@ -61,16 +111,20 @@ while IFS='=' read -r key value; do
   SECRET_MAP["$key"]="$value"
 done < "$SECRETS"
 
-PLACEHOLDERS=(
-  __TELEGRAM_BOT_TOKEN_NOTIFY__
-  __TELEGRAM_CHAT_ID_NOTIFY__
-  __TELEGRAM_BOT_TOKEN_IGNOREHOST__
-  __TELEGRAM_CHAT_ID_IGNOREHOST__
-  __FAIL2BAN_UI_CALLBACK_SECRET__
+# Secrets that must be present in the config file. The placeholder token is
+# derived from the key name: the placeholder tokens are never written in this
+# file, otherwise deploying it would inject the real secrets into the
+# deployed copy of this script.
+SECRET_KEYS=(
+  TELEGRAM_BOT_TOKEN_NOTIFY
+  TELEGRAM_CHAT_ID_NOTIFY
+  TELEGRAM_BOT_TOKEN_IGNOREHOST
+  TELEGRAM_CHAT_ID_IGNOREHOST
+  FAIL2BAN_UI_CALLBACK_SECRET
 )
 
-for ph in "${PLACEHOLDERS[@]}"; do
-  key="${ph//__/}"
+for key in "${SECRET_KEYS[@]}"; do
+  ph="__${key}__"
   if [[ -z "${SECRET_MAP[$key]:-}" || "${SECRET_MAP[$key]}" == "$ph" ]]; then
     echo "ERROR: secret '$key' is missing or still a placeholder in $SECRETS" >&2
     exit 1
@@ -80,8 +134,7 @@ done
 echo "Repository: $REPO_ROOT"
 echo "Destination: $DEST"
 echo "Config:      $SECRETS (values masked)"
-for ph in "${PLACEHOLDERS[@]}"; do
-  key="${ph//__/}"
+for key in "${SECRET_KEYS[@]}"; do
   printf '  %-32s = %s\n' "$key" "<set, ${#SECRET_MAP[$key]} chars>"
 done
 echo
@@ -106,6 +159,17 @@ open(dst, 'wb').write(data)
 PY
 }
 
+# Default permissions for a file that does not exist in the destination yet.
+# The deployed scripts must stay executable, the configuration keeps the tight
+# modes used by fail2ban.
+default_mode() { # $1 = path relative to the destination
+  case "$1" in
+    scripts/*)                          printf '750' ;;
+    action.d/*|filter.d/*|jail.d/*)    printf '640' ;;
+    *)                                  printf '644' ;;
+  esac
+}
+
 status=0
 for rel in "${FILES[@]}"; do
   src="$REPO_ROOT/$rel"
@@ -116,13 +180,18 @@ for rel in "${FILES[@]}"; do
     continue
   fi
   tmp="$(mktemp)"
-  render_to "$src" "$tmp"
-  if grep -q '__[A-Z0-9_]*__' "$tmp"; then
-    echo "ERROR: unresolved placeholder in $rel:" >&2
-    grep -an '__[A-Z0-9_]*__' "$tmp" >&2
-    rm -f "$tmp"
-    status=1
-    continue
+  if is_template "$rel"; then
+    # Templates are copied as they are: they must never hold a secret.
+    cp "$src" "$tmp"
+  else
+    render_to "$src" "$tmp"
+    if grep -q '__[A-Z0-9_]*__' "$tmp"; then
+      echo "ERROR: unresolved placeholder in $rel:" >&2
+      grep -an '__[A-Z0-9_]*__' "$tmp" >&2
+      rm -f "$tmp"
+      status=1
+      continue
+    fi
   fi
   if [[ "$APPLY" -eq 1 ]]; then
     mkdir -p "$(dirname "$dst")"
@@ -131,6 +200,8 @@ for rel in "${FILES[@]}"; do
     if [[ -f "$dst" ]]; then
       chmod --reference="$dst" "$tmp" 2>/dev/null || true
       chown --reference="$dst" "$tmp" 2>/dev/null || true
+    else
+      chmod "$(default_mode "$rel")" "$tmp" 2>/dev/null || true
     fi
     mv -f "$tmp" "$dst"
     echo "WROTE  $dst ($(wc -c < "$dst") bytes)"

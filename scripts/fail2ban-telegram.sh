@@ -50,6 +50,26 @@ function get_timestamp {
   date '+%Y-%m-%d %H:%M:%S %Z'
 }
 
+# Version of the deployed scripts, shown in every message: it tells which
+# release is running (and therefore whether the automatic update has already
+# been applied). The file is looked up in the fail2ban data directory and,
+# as a fallback, next to the scripts themselves.
+function get_scripts_version {
+  local version_file=""
+  if [[ -n "${FAIL2BAN_DATA_DIR:-}" && -f "$FAIL2BAN_DATA_DIR/VERSION" ]]; then
+    version_file="$FAIL2BAN_DATA_DIR/VERSION"
+  fi
+  if [[ -z "$version_file" ]]; then
+    version_file="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/VERSION"
+  fi
+  local version="unknown"
+  if [[ -f "$version_file" ]]; then
+    version="$(tr -d '[:space:]' < "$version_file" 2>/dev/null)"
+    [[ -n "$version" ]] || version="unknown"
+  fi
+  printf '%s' "$version"
+}
+
 # Format message with better presentation
 function format_message {
   local action="$1"
@@ -59,24 +79,28 @@ function format_message {
   
   local timestamp=$(get_timestamp)
   local hostname=$(hostname)
-  
+  local scripts_version=$(get_scripts_version)
+
   case "$action" in
     "start")
       echo -e "<b>${EMOJI_START} Fail2ban Service Started</b>\n\n"\
               "<b>🖥️  Server:</b> ${hostname}\n"\
               "<b>🕐 Time:</b> ${timestamp}\n"\
+              "<b>📦 Scripts version:</b> ${scripts_version}\n"\
               "<b>📝 Status:</b> Service has been started successfully"
       ;;
     "stop")
       echo -e "<b>${EMOJI_STOP} Fail2ban Service Stopped</b>\n\n"\
               "<b>🖥️  Server:</b> ${hostname}\n"\
               "<b>🕐 Time:</b> ${timestamp}\n"\
+              "<b>📦 Scripts version:</b> ${scripts_version}\n"\
               "<b>📝 Status:</b> Service has been stopped"
       ;;
     "ban")
       echo -e "<b>${EMOJI_BAN} IP Address Banned</b>\n\n"\
               "<b>🖥️  Server:</b> ${hostname}\n"\
               "<b>🕐 Time:</b> ${timestamp}\n"\
+              "<b>📦 Scripts version:</b> ${scripts_version}\n"\
               "<b>🆔 IP:</b> ${ip}\n"\
               "<b>🌐 Reverse DNS:</b> ${reverse_dns}\n"\
               "<b>📍 Location:</b> ${geo_location}"
@@ -85,6 +109,7 @@ function format_message {
       echo -e "<b>${EMOJI_UNBAN} IP Address Unbanned</b>\n\n"\
               "<b>🖥️  Server:</b> ${hostname}\n"\
               "<b>🕐 Time:</b> ${timestamp}\n"\
+              "<b>📦 Scripts version:</b> ${scripts_version}\n"\
               "<b>🆔 IP:</b> ${ip}\n"\
               "<b>🌐 Reverse DNS:</b> ${reverse_dns}\n"\
               "<b>📍 Location:</b> ${geo_location}"
@@ -128,8 +153,29 @@ function send_msg {
   # Check if message was sent successfully
   if [[ "$response" != *200 ]]; then
     echo "Error: Failed to send Telegram message. HTTP response code: $response" >&2
-    exit 1
+    return 1
   fi
+  return 0
+}
+
+# Trigger the automatic update of the deployed scripts.
+#
+# The updater (scripts/version_check.sh) is started detached: it must never
+# delay the notification nor keep the output pipe open (fail2ban waits for
+# the output of the action). It is a no-op when:
+#   - FAIL2BAN_DATA_DIR is not set (the scripts are not running inside the
+#     deployed fail2ban data directory),
+#   - the updater is missing,
+#   - the auto-update is disabled or was already performed today.
+function trigger_auto_update {
+  local data_dir="${FAIL2BAN_DATA_DIR:-}"
+  local updater
+  [[ -n "$data_dir" ]] || return 0
+  updater="$data_dir/scripts/version_check.sh"
+  [[ -f "$updater" && -x "$updater" ]] || return 0
+  nohup "$updater" --dest "$data_dir" --quiet >/dev/null 2>&1 &
+  disown 2>/dev/null || true
+  return 0
 }
 
 # Check for script arguments
@@ -146,16 +192,17 @@ if [ -n "$2" ]; then
 fi
 
 # Take action depending on argument
+status=0
 case "$1" in
   "start")
-    send_msg "start"
+    send_msg "start" || status=$?
     ;;
   "stop")
-    send_msg "stop"
+    send_msg "stop" || status=$?
     ;;
   "ban")
     if [ -n "$2" ]; then
-      send_msg "ban" "$2"
+      send_msg "ban" "$2" || status=$?
     else
       echo "Error: IP address required for ban action" >&2
       show_usage
@@ -163,7 +210,7 @@ case "$1" in
     ;;
   "unban")
     if [ -n "$2" ]; then
-      send_msg "unban" "$2"
+      send_msg "unban" "$2" || status=$?
     else
       echo "Error: IP address required for unban action" >&2
       show_usage
@@ -175,4 +222,8 @@ case "$1" in
     ;;
 esac
 
-exit 0
+# Give the updater the chance to pull a newer release of the deployed scripts
+# (no-op when the auto-update is disabled or already checked today).
+trigger_auto_update
+
+exit "$status"

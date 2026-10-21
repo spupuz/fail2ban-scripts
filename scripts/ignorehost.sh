@@ -31,6 +31,11 @@ ALLOWED_HOSTS = [
 import ast as _ast
 import os as _os
 import re as _re
+import subprocess as _subprocess
+
+# Directory that holds the scripts (the parent of this file): the VERSION
+# file of the deployed release lives there.
+_SCRIPT_DIR = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
 
 def _parse_list_assignment(content, name):
     """Return the list literal assigned to `name` in a KEY=VALUE file.
@@ -190,10 +195,33 @@ def get_timestamp():
     """Get current timestamp"""
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")
 
+def get_scripts_version():
+    """Version of the deployed scripts, shown in every message.
+
+    It tells which release is running (and therefore whether the automatic
+    update has already been applied). The file is looked up in the fail2ban
+    data directory and, as a fallback, next to the scripts themselves.
+    """
+    candidates = []
+    data_dir = _os.environ.get('FAIL2BAN_DATA_DIR', '')
+    if data_dir:
+        candidates.append(_os.path.join(data_dir, 'VERSION'))
+    candidates.append(_os.path.join(_SCRIPT_DIR, 'VERSION'))
+    for candidate in candidates:
+        try:
+            with open(candidate, encoding='utf-8') as handle:
+                version = handle.read().strip()
+            if version:
+                return version
+        except OSError:
+            continue
+    return 'unknown'
+
 def format_message(ip, matching_domain, is_domain, reverse_dns, geo_location):
     """Format fancy Telegram message with emojis and better presentation"""
     timestamp = get_timestamp()
     hostname = socket.gethostname()
+    scripts_version = get_scripts_version()
     
     ignore_reason = "Matching Domain" if is_domain else "Matching Host Provider"
     reason_emoji = EMOJI_DOMAIN if is_domain else EMOJI_HOST
@@ -201,6 +229,7 @@ def format_message(ip, matching_domain, is_domain, reverse_dns, geo_location):
     message = f"<b>{EMOJI_IGNORE} IP Address Ignored</b>\n\n"
     message += f"<b>{EMOJI_INFO} Server:</b> {hostname}\n"
     message += f"<b>{EMOJI_TIME} Time:</b> {timestamp}\n"
+    message += f"<b>📦 Scripts version:</b> {scripts_version}\n"
     message += f"<b>🆔 IP:</b> {ip}\n"
     message += f"<b>{reason_emoji} Reason:</b> {ignore_reason}\n"
     message += f"<b>🔗 Matching Domain/Host:</b> {matching_domain}\n"
@@ -246,6 +275,31 @@ def send_telegram_notification(ip, matching_domain, is_domain):
     except Exception as e:
         print(f"Error sending Telegram notification: {e}")
 
+def trigger_auto_update():
+    """Trigger the automatic update of the deployed scripts.
+
+    The updater (scripts/version_check.sh) is started detached: it must never
+    delay the ignorecommand nor keep the output pipe open (fail2ban waits for
+    the output of the command). It is a no-op when:
+      - FAIL2BAN_DATA_DIR is not set (the script is not running inside the
+        deployed fail2ban data directory),
+      - the updater is missing,
+      - the auto-update is disabled or was already performed today.
+    """
+    data_dir = _os.environ.get('FAIL2BAN_DATA_DIR', '')
+    if not data_dir:
+        return
+    updater = _os.path.join(data_dir, 'scripts', 'version_check.sh')
+    if not (_os.path.isfile(updater) and _os.access(updater, _os.X_OK)):
+        return
+    try:
+        with open(_os.devnull, 'wb') as devnull:
+            _subprocess.Popen([updater, '--dest', data_dir, '--quiet'],
+                              stdin=devnull, stdout=devnull, stderr=devnull,
+                              start_new_session=True, close_fds=True)
+    except OSError as error:
+        print(f"Warning: could not start the auto-updater: {error}", file=sys.stderr)
+
 if __name__ == '__main__':  # pragma: no cover
     try:
         ip = process_args(sys.argv)
@@ -259,4 +313,7 @@ if __name__ == '__main__':  # pragma: no cover
     except ValueError as e:
         sys.stderr.write(str(e))
         sys.exit(2)
+    # Give the updater the chance to pull a newer release of the deployed
+    # scripts (no-op when the auto-update is disabled or already checked today).
+    trigger_auto_update()
     sys.exit(0 if matching_domain else 1)

@@ -16,8 +16,13 @@ run/
 .update_log
 .version_check.log
 .disable_auto_update
+.update_lock
 
 # Editor / OS
 *.swp
 *~
 .DS_Store
+
+# Python
+pycache/
+scripts/__pycache__

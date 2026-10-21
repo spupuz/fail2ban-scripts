@@ -9,12 +9,12 @@ Repository of **custom fail2ban scripts and configuration**.
 
 | Path | Description |
 |------|-------------|
-| `scripts/fail2ban-telegram.sh` | Formatted Telegram notifications for ban/unban (bash, current version) |
-| `scripts/ignorehost.sh` | Host lookup for ignorehost whitelist (Python, despite `.sh` extension) |
+| `scripts/fail2ban-telegram.sh` | Formatted Telegram notifications for ban/unban (bash, current version). Shows the version of the running scripts |
+| `scripts/ignorehost.sh` | Host lookup for ignorehost whitelist (Python, despite `.sh` extension). Shows the version of the running scripts |
 
-| `scripts/deploy.sh` | Copies files to the fail2ban data directory **injecting secrets** from `config.local` |
+| `scripts/deploy.sh` | Copies files to the fail2ban data directory **injecting secrets** from `config.local` (`--scripts-only` to skip the configuration) |
 | `scripts/redact.sh` | Inverse operation: from the live directory to the repo, replacing secrets with placeholders |
-| `scripts/version_check.sh` | Check for updates and auto-install latest releases from GitHub |
+| `scripts/version_check.sh` | Check for updates and auto-install latest releases from GitHub (scripts only, self-contained) |
 | `action.d/telegram.local` | Override of the `telegram` action |
 | `action.d/iptables-nft.local` | Override of the `iptables-nft` action |
 | `action.d/ui-custom-action.conf` | Custom action used by Fail2Ban-UI (callback on `127.0.0.1`) |
@@ -51,6 +51,14 @@ fail2ban-client reload
 
 `--secrets FILE` allows using an alternative config file (default: `config.local` next to the repo root).
 
+`--scripts-only` deploys only the scripts and leaves the configuration of
+the running fail2ban untouched (this is what the
+[automatic update](#auto-update) does).
+
+Inside the container the deployed scripts also need to know where the data
+directory is, to be able to update themselves: set the environment variable
+`FAIL2BAN_DATA_DIR=/data` (see [Auto-update](#auto-update)).
+
 `scripts/ignorehost.sh` additionally reads the whitelist (`ALLOWED_DOMAINS` /
 `ALLOWED_HOSTS`) **at runtime** from `config.local` placed one directory above
 the deployed scripts — i.e. `<dest>/config.local` for `<dest>/scripts/ignorehost.sh`.
@@ -85,17 +93,131 @@ All machine-specific settings live in `config.local` (gitignored):
 
 Source files contain only `__PLACEHOLDER__` tokens. Real values are injected at deploy time from `config.local`.
 
+### Templates and rendered files
+
+Not every deployed file needs the secrets, and a file that reads `config.local`
+at runtime must never receive the secrets at install time:
+
+| File | Deployed as | Why |
+|------|-------------|-----|
+| `scripts/fail2ban-telegram.sh` | **rendered** | the bot token, the chat ID and the UI secret are injected |
+| `scripts/ignorehost.sh` | **rendered** | same |
+| `action.d/*`, `filter.d/*`, `jail.d/*`, `jail.local`, `paths-overrides.local` | **rendered** | they reference the bot token and the UI secret |
+| `scripts/deploy.sh`, `scripts/redact.sh`, `scripts/version_check.sh` | **template** | installed verbatim: they read `config.local` when they run, so they never hold a secret |
+| `VERSION` | **template** | installed verbatim |
+
+The helpers stay secret-free, therefore the automatic update can replace them
+without touching `config.local`, and the placeholder check of the updater
+cannot be fooled by a token that looks like a secret.
+
 `local_tests/test_secrets.sh` fails the build if a real credential ends up in a git-tracked file.
 
 ## Auto-update
 
-`scripts/version_check.sh` checks for newer GitHub releases:
+The deployed scripts update themselves: **the ban/unban/ignore Telegram
+scripts trigger the update check**, so there is nothing to schedule.
 
-- Runs at most once per day
-- Downloads and installs the latest release automatically
-- Sends a Telegram notification on update
+```
+fail2ban ──► scripts/fail2ban-telegram.sh   (ban/unban notification)
+          └► scripts/ignorehost.sh          (ignore notification)
+                └► scripts/version_check.sh --dest <data dir> --quiet
+                      ├─ check the GitHub release (at most once per day)
+                      ├─ install the new scripts (atomic replace)
+                      ├─ render + install the scripts into <data dir>
+                      │  (self-contained: the secrets are injected by the
+                      │   updater itself, deploy.sh is not called)
+                      └─ Telegram notification
+```
+
+- Runs **at most once per day** (timestamp file `.last_update_check`)
 - Disabled when `AUTO_UPDATE_ENABLED=false` in `config.local`
 - Can also be disabled by creating a `.disable_auto_update` file
+- Sends a Telegram notification when an update is installed
+- Never breaks a ban/unban/ignore: the check runs detached (it never delays
+  the notification and never keeps the output pipe open) and every error is
+  written to `.version_check.log` / `.update_log` in the data directory
+
+The updater is **self-contained**: it injects the secrets itself instead of
+calling `scripts/deploy.sh`. The deployed `deploy.sh` comes from the release
+that is currently installed, which may be older than the updater and would not
+understand the new flags — rendering the secrets in the updater removes that
+dependency, so an update always works.
+
+### Telegram messages
+
+Every message sent by `fail2ban-telegram.sh` and `ignorehost.sh` shows the
+version of the scripts that produced it:
+
+```
+📦 Scripts version: 0.3.0
+```
+
+The version is read from `$FAIL2BAN_DATA_DIR/VERSION` (the live install) and
+falls back to the `VERSION` file next to the scripts. It tells which release is
+running and therefore whether an automatic update has already been applied.
+
+The update notification is only sent when something actually happened:
+
+| Situation | Notification |
+|-----------|--------------|
+| Up to date | none — the check is silent |
+| Update installed | `🆙 fail2ban-scripts updated: 0.2.0 ➜ 0.3.0` + what was (not) touched |
+| Install failed | `fail2ban-scripts: update to 0.3.0 failed (current 0.2.0).` |
+| Deploy into the data dir failed | `… was installed but the deploy into <dir> failed. Run scripts/deploy.sh --apply --dest <dir> manually.` |
+
+### Only the scripts are updated
+
+An automatic update **never touches the configuration files**
+(`action.d/*`, `filter.d/*`, `jail.d/*`, `jail.local`,
+`paths-overrides.local`):
+
+- `jail.local` is managed by the Fail2Ban-UI — an automatic update would
+  silently revert the settings changed in the UI;
+- the other files change the behaviour of the running service (bantime,
+  actions, jails) and must be reviewed before being applied.
+
+The update therefore only replaces `scripts/fail2ban-telegram.sh`,
+`scripts/ignorehost.sh` and the helper scripts (`deploy.sh`, `redact.sh`,
+`version_check.sh`) plus the `VERSION` file. The configuration is refreshed
+only on demand:
+
+```bash
+# deploy everything (scripts + configuration)
+scripts/deploy.sh --apply --dest /path/to/fail2ban/data
+
+# deploy only the scripts (what the automatic update does)
+scripts/deploy.sh --apply --dest /path/to/fail2ban/data --scripts-only
+
+# let the automatic update refresh the configuration as well
+scripts/version_check.sh --with-config
+```
+
+`scripts/redact.sh` accepts the same `--scripts-only` flag, so the live →
+repo sync can be limited to the scripts too.
+
+A scripts-only update does **not** reload fail2ban: the configuration did not
+change, so the running jails stay untouched.
+
+### Requirements
+
+The trigger must know where the deployed files live: the scripts read the
+`FAIL2BAN_DATA_DIR` environment variable and do nothing when it is not set.
+In the official fail2ban image the data directory is `/data`:
+
+```yaml
+environment:
+  - FAIL2BAN_DATA_DIR=/data
+```
+
+The updater also needs `config.local` in that directory (secrets and the
+`AUTO_UPDATE_ENABLED` flag) and `scripts/version_check.sh` must be deployed
+there, so deploy the scripts at least once:
+
+```bash
+scripts/deploy.sh --apply --dest /path/to/fail2ban/data --scripts-only
+```
+
+### Manual usage
 
 ```bash
 # Manual check (report only)
@@ -103,21 +225,18 @@ scripts/version_check.sh --check
 
 # Force check now
 scripts/version_check.sh --force
+
+# Check and deploy into the live directory (scripts only)
+scripts/version_check.sh --dest /path/to/fail2ban/data
+
+# Use another secrets file (default: <data dir>/config.local)
+scripts/version_check.sh --dest /path/to/fail2ban/data --secrets /path/to/config.local
 ```
 
-> **Nothing runs it automatically.** The script only refreshes the repository
-> checkout it lives in: it is not scheduled by cron/systemd and it is not
-> installed inside the fail2ban container. To make the *running* fail2ban
-> follow the releases, schedule it yourself and chain the deploy step, e.g.
-> in the host crontab:
->
-> ```cron
-> 17 4 * * * /path/to/fail2ban-scripts/scripts/version_check.sh --quiet && /path/to/fail2ban-scripts/scripts/deploy.sh --apply --dest /path/to/fail2ban/data && docker exec fail2ban fail2ban-client reload
-> ```
->
-> Remember to copy `config.local` next to the deployed scripts (see
-> [Deploy to fail2ban](#2-deploy-to-fail2ban)): an update reinstalls the
-> placeholder based scripts, and the live secrets come from that file.
+> When `version_check.sh` runs from a repository checkout it refreshes the
+> checkout itself. Use `--dest DIR` to also deploy the result into a live
+> fail2ban data directory, exactly like the trigger does inside the
+> container.
 
 ## Reverse sync (live → repo)
 
@@ -144,6 +263,43 @@ The deploy → redact round trip is verified byte-for-byte by `local_tests/test_
 - **MAJOR** — breaking changes (removed jails, changed behavior)
 
 ## Changelog
+
+### v0.3.0
+
+- **Feature**: the deployed scripts update themselves. The ban/unban/ignore
+  Telegram scripts (`scripts/fail2ban-telegram.sh`, `scripts/ignorehost.sh`)
+  trigger `scripts/version_check.sh` after every notification, when the
+  auto-update is enabled. The check is detached (it never delays the
+  notification) and runs at most once per day.
+- **The automatic update only refreshes the scripts**: the configuration
+  files (`action.d/*`, `filter.d/*`, `jail.d/*`, `jail.local`,
+  `paths-overrides.local`) are never touched automatically, because
+  `jail.local` is managed by the Fail2Ban-UI and the others change the
+  behaviour of the running service. New `--scripts-only` flag on
+  `scripts/deploy.sh` / `scripts/redact.sh` and `--with-config` flag on
+  `scripts/version_check.sh` for the explicit cases.
+- The updater is **self-contained**: it injects the secrets itself instead of
+  calling `scripts/deploy.sh`, whose installed version comes from the release
+  and may be too old for the new flags. The helpers (`deploy.sh`,
+  `redact.sh`, `version_check.sh`) and `VERSION` are deployed as **templates**
+  (verbatim, never holding a secret); only `fail2ban-telegram.sh` and
+  `ignorehost.sh` are rendered with the secrets.
+- **Every Telegram message now shows the version of the running scripts**
+  (`📦 Scripts version: 0.3.0`), read from `$FAIL2BAN_DATA_DIR/VERSION` with
+  a fallback to the `VERSION` file next to the scripts. The update
+  notification reports the version transition (`0.2.0 ➜ 0.3.0`) and is only
+  sent when an update is actually installed — an up-to-date check stays
+  silent.
+- The updater installs the release atomically (a running script keeps its
+  inode), keeps the permissions of the replaced files and uses a lock so
+  that two checks never run at the same time.
+- The updater falls back to the GitHub releases page when the API is rate
+  limited, and reloads fail2ban only when the configuration changed.
+- `scripts/deploy.sh` refuses to deploy into a git working tree: the
+  rendered files contain the real secrets and could be committed.
+- New `local_tests/test_autoupdate.sh` covering the whole chain (trigger,
+  throttle, enable flag, deploy, atomic replace, git working tree guard,
+  version displayed in the notifications).
 
 ### v0.2.1
 

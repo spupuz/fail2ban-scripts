@@ -74,6 +74,16 @@ for f in "${RENDERED[@]}"; do
   fi
 done
 
+# 3b. the deployed scripts must be executable: the automatic update runs
+#     scripts/version_check.sh and fail2ban runs the notification scripts
+for rel in scripts/fail2ban-telegram.sh scripts/ignorehost.sh \
+           scripts/deploy.sh scripts/redact.sh scripts/version_check.sh; do
+  if [[ ! -x "$DEST/$rel" ]]; then
+    echo "FAIL $rel is not executable"
+    fail=1
+  fi
+done
+
 # 4. dry-run must not write anything
 EMPTY="$TMP/empty-dest"
 mkdir -p "$EMPTY"
@@ -104,7 +114,9 @@ if ! bash scripts/redact.sh --src "$DEST" --out "$RED" --secrets "$FAKE_SECRETS"
   echo "FAIL redact.sh exited non-zero"
   fail=1
 else
-  for rel in scripts/fail2ban-telegram.sh \
+  for rel in VERSION \
+             scripts/deploy.sh scripts/redact.sh scripts/version_check.sh \
+             scripts/fail2ban-telegram.sh \
              scripts/ignorehost.sh \
              action.d/telegram.local action.d/iptables-nft.local \
              action.d/ui-custom-action.conf filter.d/npm-docker.conf \
@@ -118,6 +130,48 @@ else
   # and no secret may survive redaction
   if grep -rqF "$FAKE_CALLBACK" "$RED" 2>/dev/null; then
     echo "FAIL redact.sh left a real secret in the output"
+    fail=1
+  fi
+fi
+
+# 7. --scripts-only deploys the scripts and leaves the configuration alone
+#    (this is what the automatic update does)
+SCRIPTS_ONLY_DEST="$TMP/scripts-only"
+mkdir -p "$SCRIPTS_ONLY_DEST"
+if ! bash scripts/deploy.sh --apply --dest "$SCRIPTS_ONLY_DEST" \
+       --secrets "$FAKE_SECRETS" --scripts-only >/dev/null 2>&1; then
+  echo "FAIL deploy.sh --scripts-only exited non-zero"
+  fail=1
+fi
+for rel in VERSION scripts/fail2ban-telegram.sh scripts/ignorehost.sh \
+           scripts/deploy.sh scripts/redact.sh scripts/version_check.sh; do
+  if [[ ! -f "$SCRIPTS_ONLY_DEST/$rel" ]]; then
+    echo "FAIL deploy.sh --scripts-only did not write $rel"
+    fail=1
+  fi
+done
+if [[ -e "$SCRIPTS_ONLY_DEST/jail.local" ]] || [[ -e "$SCRIPTS_ONLY_DEST/action.d" ]] \
+   || [[ -e "$SCRIPTS_ONLY_DEST/jail.d" ]]; then
+  echo "FAIL deploy.sh --scripts-only wrote configuration files"
+  fail=1
+fi
+
+# 8. redact.sh --scripts-only redacts the scripts only
+RED_SCRIPTS="$TMP/redacted-scripts"
+if ! bash scripts/redact.sh --src "$DEST" --out "$RED_SCRIPTS" \
+       --secrets "$FAKE_SECRETS" --scripts-only >/dev/null 2>&1; then
+  echo "FAIL redact.sh --scripts-only exited non-zero"
+  fail=1
+else
+  if [[ ! -f "$RED_SCRIPTS/scripts/fail2ban-telegram.sh" ]]; then
+    echo "FAIL redact.sh --scripts-only did not redact the scripts"
+    fail=1
+  elif ! diff -u scripts/fail2ban-telegram.sh "$RED_SCRIPTS/scripts/fail2ban-telegram.sh" >/dev/null 2>&1; then
+    echo "FAIL redact.sh --scripts-only round-trip mismatch"
+    fail=1
+  fi
+  if [[ -e "$RED_SCRIPTS/jail.local" ]] || [[ -e "$RED_SCRIPTS/action.d" ]]; then
+    echo "FAIL redact.sh --scripts-only redacted configuration files"
     fail=1
   fi
 fi
