@@ -51,6 +51,17 @@ fail2ban-client reload
 
 `--secrets FILE` allows using an alternative config file (default: `config.local` next to the repo root).
 
+`scripts/ignorehost.sh` additionally reads the whitelist (`ALLOWED_DOMAINS` /
+`ALLOWED_HOSTS`) **at runtime** from `config.local` placed one directory above
+the deployed scripts — i.e. `<dest>/config.local` for `<dest>/scripts/ignorehost.sh`.
+Copy the same `config.local` into the fail2ban data directory, otherwise the
+script keeps its built-in placeholder whitelist and every whitelisted address
+gets banned (a warning is printed in the fail2ban log).
+
+> The configuration file is **parsed, never executed**: it is a shell-style
+> `KEY=VALUE` file and real values (a Telegram bot token contains a colon)
+> are not valid Python expressions.
+
 ### 3. Test locally
 
 ```bash
@@ -69,8 +80,8 @@ All machine-specific settings live in `config.local` (gitignored):
 | `TELEGRAM_CHAT_ID_IGNOREHOST` | Telegram chat ID for ignorehost |
 | `FAIL2BAN_UI_CALLBACK_SECRET` | Fail2Ban-UI callback secret |
 | `AUTO_UPDATE_ENABLED` | Enable/disable auto-update from GitHub (`true`/`false`) |
-| `ALLOWED_DOMAINS` | Domains whitelisted by ignorehost |
-| `ALLOWED_HOSTS` | Host providers whitelisted by ignorehost |
+| `ALLOWED_DOMAINS` | Domains whitelisted by ignorehost (read at runtime from `<dest>/config.local`) |
+| `ALLOWED_HOSTS` | Host providers whitelisted by ignorehost (read at runtime from `<dest>/config.local`) |
 
 Source files contain only `__PLACEHOLDER__` tokens. Real values are injected at deploy time from `config.local`.
 
@@ -93,6 +104,20 @@ scripts/version_check.sh --check
 # Force check now
 scripts/version_check.sh --force
 ```
+
+> **Nothing runs it automatically.** The script only refreshes the repository
+> checkout it lives in: it is not scheduled by cron/systemd and it is not
+> installed inside the fail2ban container. To make the *running* fail2ban
+> follow the releases, schedule it yourself and chain the deploy step, e.g.
+> in the host crontab:
+>
+> ```cron
+> 17 4 * * * /path/to/fail2ban-scripts/scripts/version_check.sh --quiet && /path/to/fail2ban-scripts/scripts/deploy.sh --apply --dest /path/to/fail2ban/data && docker exec fail2ban fail2ban-client reload
+> ```
+>
+> Remember to copy `config.local` next to the deployed scripts (see
+> [Deploy to fail2ban](#2-deploy-to-fail2ban)): an update reinstalls the
+> placeholder based scripts, and the live secrets come from that file.
 
 ## Reverse sync (live → repo)
 
@@ -119,6 +144,19 @@ The deploy → redact round trip is verified byte-for-byte by `local_tests/test_
 - **MAJOR** — breaking changes (removed jails, changed behavior)
 
 ## Changelog
+
+### v0.2.1
+
+- **Fix**: `scripts/ignorehost.sh` no longer `exec()`s `config.local`. The file
+  is shell-style `KEY=VALUE`, and a real Telegram bot token (`123456789:AAE…`)
+  is not a valid Python expression: the loader raised a `SyntaxError` and the
+  whitelist silently fell back to the built-in placeholders, i.e. every
+  whitelisted address got banned. The two list literals are now parsed with
+  `ast.literal_eval` (no code execution).
+- New `local_tests/test_ignorehost_config.sh` covering the loader (real
+  credential in the config, missing file, malformed list, brackets in strings).
+- Documented that `config.local` must also be present in the deployed fail2ban
+  data directory and that the auto-update is **not** scheduled by default.
 
 ### v0.1.1
 

@@ -22,22 +22,91 @@ ALLOWED_HOSTS = [
 ]
 
 # Load custom configuration from config.local (gitignored)
-# This file contains host-specific settings that must not be committed to GitHub
+# This file contains host-specific settings that must not be committed to GitHub.
+#
+# The file is shell-style KEY=VALUE, NOT Python: values such as Telegram bot
+# tokens ("123456789:AAE...") are not valid Python expressions, so it must
+# never be exec'd. Only the two whitelists are read here — the Telegram
+# credentials are injected at deploy time by scripts/deploy.sh.
+import ast as _ast
 import os as _os
-_config_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'config.local')
-if _os.path.isfile(_config_path):
+import re as _re
+
+def _parse_list_assignment(content, name):
+    """Return the list literal assigned to `name` in a KEY=VALUE file.
+
+    The literal is located with a bracket matching scan (so nested lists and
+    brackets inside strings are handled) and parsed with ast.literal_eval,
+    which never executes code. Returns None when the key is missing or when
+    the value is not a valid list.
+    """
+    match = _re.search(r'^[ \t]*' + name + r'[ \t]*=[ \t]*', content, _re.M)
+    if not match:
+        return None
+    # The value must start with '[': looking for the next bracket anywhere in
+    # the file would pick up the list of another key.
+    if not content.startswith('[', match.end()):
+        return None
+    start = match.end()
+    depth = 0
+    quote = None
+    escaped = False
+    for index in range(start, len(content)):
+        char = content[index]
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif char == '\\':
+                escaped = True
+            elif char == quote:
+                quote = None
+            continue
+        if char in '"\'':
+            quote = char
+        elif char == '[':
+            depth += 1
+        elif char == ']':
+            depth -= 1
+            if depth == 0:
+                try:
+                    value = _ast.literal_eval(content[start:index + 1])
+                except (ValueError, SyntaxError):
+                    return None
+                return value if isinstance(value, list) else None
+    return None
+
+def _load_runtime_whitelists(script_path):
+    """Load ALLOWED_DOMAINS / ALLOWED_HOSTS from the config.local that sits one
+    level above the deployed script (i.e. <fail2ban data dir>/config.local).
+
+    Returns a dict holding only the keys actually found. A missing or
+    malformed file is not fatal: the built-in placeholders stay in place and a
+    warning is printed, so the failure is visible in the fail2ban log instead
+    of silently disabling the whitelist.
+    """
+    config_path = _os.path.join(_os.path.dirname(_os.path.abspath(script_path)), '..', 'config.local')
+    whitelists = {}
+    if not _os.path.isfile(config_path):
+        print(f"Warning: config.local not found at {config_path}: "
+              "using the built-in whitelist placeholders.", file=sys.stderr)
+        return whitelists
     try:
-        _config_globals = {}
-        with open(_config_path, 'r') as _f:
-            _config_content = _f.read()
-        # Execute the config file to load its variables
-        exec(compile(_config_content, _config_path, 'exec'), _config_globals)
-        if 'ALLOWED_DOMAINS' in _config_globals:
-            ALLOWED_DOMAINS = _config_globals['ALLOWED_DOMAINS']
-        if 'ALLOWED_HOSTS' in _config_globals:
-            ALLOWED_HOSTS = _config_globals['ALLOWED_HOSTS']
-    except Exception as _e:
-        print(f"Warning: Failed to load config.local: {_e}", file=sys.stderr)
+        with open(config_path, 'r') as handle:
+            content = handle.read()
+    except OSError as error:
+        print(f"Warning: failed to read {config_path}: {error}", file=sys.stderr)
+        return whitelists
+    for key in ('ALLOWED_DOMAINS', 'ALLOWED_HOSTS'):
+        value = _parse_list_assignment(content, key)
+        if value is None:
+            print(f"Warning: {key} missing or malformed in {config_path}.", file=sys.stderr)
+        else:
+            whitelists[key] = value
+    return whitelists
+
+_runtime_whitelists = _load_runtime_whitelists(__file__)
+ALLOWED_DOMAINS = _runtime_whitelists.get('ALLOWED_DOMAINS', ALLOWED_DOMAINS)
+ALLOWED_HOSTS = _runtime_whitelists.get('ALLOWED_HOSTS', ALLOWED_HOSTS)
 
 # Emojis for better visual presentation
 EMOJI_IGNORE = "🛡️"

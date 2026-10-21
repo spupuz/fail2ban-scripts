@@ -5,6 +5,7 @@ name: CI
 #   - local_tests/test_configs.sh         fail2ban config structure, cross refs, semver
 #   - local_tests/test_secrets.sh         secret/leak scan over all non-ignored files
 #   - local_tests/test_deploy.sh          deploy.sh/redact.sh placeholder round trip
+#   - local_tests/test_ignorehost_config.sh  config.local loader of ignorehost.sh
 #   - local_tests/test_skill_sync.sh      .agents/skills vs .opencode/commands parity
 #   - local_tests/test_no_host_paths.sh   rejects host-specific absolute paths
 #   - local_tests/test_yaml.sh            workflow YAML parse check
