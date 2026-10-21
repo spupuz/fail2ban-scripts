@@ -50,11 +50,6 @@ function get_timestamp {
   date '+%Y-%m-%d %H:%M:%S %Z'
 }
 
-# Escape HTML special characters for Telegram's HTML parse_mode
-function escape_html {
-  echo "$1" | sed -e 's/&/\&/g' -e 's/</\</g' -e 's/>/\>/g' -e 's/"/\"/g'
-}
-
 # Format message with better presentation
 function format_message {
   local action="$1"
@@ -97,6 +92,11 @@ function format_message {
   esac
 }
 
+# Escape HTML special characters for Telegram's HTML parse_mode
+function escape_html {
+  echo "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g'
+}
+
 # Send notification with enhanced formatting
 function send_msg {
   local action="$1"
@@ -114,12 +114,13 @@ function send_msg {
   # Escape user-controlled inputs to prevent HTML injection DoS
   local safe_reverse_dns=$(escape_html "$reverse_dns")
   local safe_geo_location=$(escape_html "$geo_location")
-  
+
   # Format the message
   local message=$(format_message "$action" "$ip" "$safe_reverse_dns" "$safe_geo_location")
   
   # Send message via Telegram API
   local response=$(curl -s -X POST "$TELEGRAM_URL" \
+    -d chat_id="$CHAT_ID" \
     --data-urlencode text="$message" \
     -d parse_mode="HTML" \
     -w "%{http_code}")
