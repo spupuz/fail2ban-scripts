@@ -333,6 +333,13 @@ non-existent file is not an error).
 
 ## Changelog
 
+### v0.4.2
+
+- **Version bump**: ensures all deployments pick up the v0.4.1 throttle
+  fix. A deployment that was manually updated to v0.4.1 with the previous
+  code would not auto-update to v0.4.1 (same version, `version_is_newer`
+  returns false); bumping to v0.4.2 makes the auto-update trigger.
+
 ### v0.4.1
 
 - **Fix**: the automatic updater no longer "burns" the daily check before a new GitHub release exists. The timestamp in `.last_update_check` is only written after a successful release query, and failures to reach the API no longer mark the day as checked (so the next notification will retry).
