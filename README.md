@@ -333,6 +333,12 @@ non-existent file is not an error).
 
 ## Changelog
 
+### v0.4.3
+
+- **Performance**: `scripts/ignorehost.sh` now runs reverse DNS and GeoIP
+  lookups concurrently using a `ThreadPoolExecutor` (PR #3), reducing
+  notification latency by eliminating sequential blocking on network I/O.
+
 ### v0.4.2
 
 - **Version bump**: ensures all deployments pick up the v0.4.1 throttle
