@@ -333,6 +333,24 @@ non-existent file is not an error).
 
 ## Changelog
 
+### v0.4.4
+
+- **Fix**: the updater and the deploy script no longer rely on the GNU-only
+  `chmod --reference` / `chown --reference` options. The scripts are installed
+  from inside the fail2ban container, whose image is BusyBox based: the GNU
+  syntax failed there, the error was swallowed by `|| true`, and the deployed
+  files silently kept the mode of the temporary file (0600 for the rendered
+  ones) instead of the tight mode (0750) of the file they replace. The mode
+  and the owner are now read with `stat` and applied numerically, which works
+  with both GNU coreutils and BusyBox.
+- **Fix**: the installer uses `chmod u+x` instead of `chmod +x`: the latter
+  also added the execute bit to the group and to the others, widening the
+  tight modes of the deployed scripts.
+- New `local_tests/test_busybox_compat.sh`: it emulates BusyBox with a
+  `chmod`/`chown` stub that rejects `--reference` and verifies that the
+  permissions are preserved by `install_file`, `deploy_file` and
+  `scripts/deploy.sh`.
+
 ### v0.4.3
 
 - **Performance**: `scripts/ignorehost.sh` now runs reverse DNS and GeoIP

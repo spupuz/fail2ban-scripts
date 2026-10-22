@@ -375,7 +375,7 @@ export RELOAD_LOG
 LIVE_DIR="$TMP/live"
 mkdir -p "$LIVE_DIR"
 for fn in deploy_release reload_fail2ban deploy_file render_file secrets_file \
-          default_mode install_file is_rendered expected_secret_keys check_rendered; do
+          default_mode install_file copy_file_meta is_rendered expected_secret_keys check_rendered; do
   eval "$(extract_function scripts/version_check.sh "$fn")"
 done
 ROOT_DIR="$ROOT"
@@ -501,6 +501,7 @@ else
 fi
 
 # --- 5. files are replaced atomically, keeping their permissions ----------
+eval "$(extract_function scripts/version_check.sh copy_file_meta)"
 eval "$(extract_function scripts/version_check.sh install_file)"
 SRC_FILE="$TMP/source.sh"
 DST_FILE="$TMP/destination.sh"
@@ -551,7 +552,7 @@ git -C "$ROOT" archive --format=tar.gz -o "$BOOTSTRAP_ARCHIVE" HEAD \
 # Run install_release with an old UPDATE_FILES that does NOT list log_rotate.sh
 # and verify that log_rotate.sh is installed anyway.
 for fn in install_release deploy_file render_file secrets_file \
-          default_mode install_file is_rendered expected_secret_keys check_rendered; do
+          default_mode install_file copy_file_meta is_rendered expected_secret_keys check_rendered; do
   eval "$(extract_function scripts/version_check.sh "$fn")"
 done
 SECRETS="$FAKE_SECRETS"

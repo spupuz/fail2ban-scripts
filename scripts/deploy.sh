@@ -161,6 +161,23 @@ open(dst, 'wb').write(data)
 PY
 }
 
+# Copy the permissions and the owner of a reference file onto a target file.
+#
+# The mode and the owner are read with stat and applied numerically instead of
+# using `chmod --reference` / `chown --reference`: those options are a GNU
+# coreutils extension that BusyBox does not support, and the deployment can
+# run inside a BusyBox based container.
+#
+# Best effort: a failure never aborts the deployment.
+copy_file_meta() { # $1 = reference file, # $2 = target file
+  local ref="$1" target="$2" mode owner
+  mode="$(stat -c '%a' "$ref" 2>/dev/null)"
+  [[ -n "$mode" ]] && chmod "$mode" "$target" 2>/dev/null || true
+  owner="$(stat -c '%u:%g' "$ref" 2>/dev/null)"
+  [[ -n "$owner" ]] && chown "$owner" "$target" 2>/dev/null || true
+  return 0
+}
+
 # Default permissions for a file that does not exist in the destination yet.
 # The deployed scripts must stay executable, the configuration keeps the tight
 # modes used by fail2ban.
@@ -200,8 +217,7 @@ for rel in "${FILES[@]}"; do
     # Preserve the destination's permissions/owner: fail2ban runs these as
     # root with tight modes (scripts are 750, ui action 600).
     if [[ -f "$dst" ]]; then
-      chmod --reference="$dst" "$tmp" 2>/dev/null || true
-      chown --reference="$dst" "$tmp" 2>/dev/null || true
+      copy_file_meta "$dst" "$tmp"
     else
       chmod "$(default_mode "$rel")" "$tmp" 2>/dev/null || true
     fi

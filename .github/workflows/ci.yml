@@ -8,6 +8,7 @@ name: CI
 #   - local_tests/test_ignorehost_config.sh  config.local loader of ignorehost.sh
 #   - local_tests/test_skill_sync.sh      .agents/skills vs .opencode/commands parity
 #   - local_tests/test_no_host_paths.sh   rejects host-specific absolute paths
+#   - local_tests/test_busybox_compat.sh  permissions preserved without GNU chmod
 #   - local_tests/test_yaml.sh            workflow YAML parse check
 on:
   push:
