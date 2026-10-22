@@ -89,6 +89,7 @@ All machine-specific settings live in `config.local` (gitignored):
 | `TELEGRAM_CHAT_ID_IGNOREHOST` | Telegram chat ID for ignorehost |
 | `FAIL2BAN_UI_CALLBACK_SECRET` | Fail2Ban-UI callback secret |
 | `AUTO_UPDATE_ENABLED` | Enable/disable auto-update from GitHub (`true`/`false`) |
+| `AUTO_UPDATE_CHECK_INTERVAL_HOURS` | Minimum interval between update checks in hours (default: 24) |
 | `LOG_ROTATE_ENABLED` | Enable/disable automatic log/backup rotation (`true`/`false`) |
 | `LOG_ROTATE_MAX_AGE` | Maximum age in days for log/backup files (default: 7) |
 | `LOG_ROTATE_MAX_SIZE` | Maximum size in MB for log/backup files (default: 500) |
@@ -125,7 +126,7 @@ scripts trigger the update check**, so there is nothing to schedule.
 fail2ban ──► scripts/fail2ban-telegram.sh   (ban/unban notification)
           └► scripts/ignorehost.sh          (ignore notification)
                 └► scripts/version_check.sh --dest <data dir> --quiet
-                      ├─ check the GitHub release (at most once per day)
+                      ├─ check the GitHub release (at most once per interval)
                       ├─ install the new scripts (atomic replace)
                       ├─ render + install the scripts into <data dir>
                       │  (self-contained: the secrets are injected by the
@@ -133,7 +134,8 @@ fail2ban ──► scripts/fail2ban-telegram.sh   (ban/unban notification)
                       └─ Telegram notification
 ```
 
-- Runs **at most once per day** (timestamp file `.last_update_check`)
+- Runs **at most once per interval** (default 24h, configurable via
+  `AUTO_UPDATE_CHECK_INTERVAL_HOURS`; timestamp file `.last_update_check`)
 - Disabled when `AUTO_UPDATE_ENABLED=false` in `config.local`
 - Can also be disabled by creating a `.disable_auto_update` file
 - Sends a Telegram notification when an update is installed
@@ -330,6 +332,11 @@ non-existent file is not an error).
 - **MAJOR** — breaking changes (removed jails, changed behavior)
 
 ## Changelog
+
+### v0.4.1
+
+- **Fix**: the automatic updater no longer "burns" the daily check before a new GitHub release exists. The timestamp in `.last_update_check` is only written after a successful release query, and failures to reach the API no longer mark the day as checked (so the next notification will retry).
+- **Feature**: configurable check interval via `AUTO_UPDATE_CHECK_INTERVAL_HOURS` in `config.local` (default: 24). The throttle file now stores a Unix timestamp for compatibility; legacy `YYYY-MM-DD` values are still accepted.
 
 ### v0.4.0
 

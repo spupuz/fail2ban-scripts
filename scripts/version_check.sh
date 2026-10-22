@@ -2,7 +2,9 @@
 # Version check and auto-update for fail2ban-scripts.
 #
 # Behaviour:
-#   - Runs at most once per day (timestamp file .last_update_check).
+#   - Runs at most once per interval (default 24h, configurable via
+#     AUTO_UPDATE_CHECK_INTERVAL_HOURS). The timestamp file .last_update_check is
+#     only written after a successful GitHub query.
 #   - Skipped entirely when auto-update is disabled (see is_auto_update_disabled).
 #   - On a newer GitHub release it downloads the release archive, installs the
 #     deployable files and reports the outcome through the Telegram notifier.
@@ -505,18 +507,58 @@ telegram_notify() { # $1 = message
   return 0
 }
 
-# --- main ------------------------------------------------------------------
+# --- throttle helpers ------------------------------------------------------
 
-should_check_today() {
+check_interval_seconds() {
+  local hours value
+  value="$(read_setting "$CONFIG_FILE" AUTO_UPDATE_CHECK_INTERVAL_HOURS)"
+  if [[ "$value" =~ ^[0-9]+$ && "$value" -ge 1 ]]; then
+    hours="$value"
+  else
+    hours=24
+  fi
+  printf '%s' $(( hours * 3600 ))
+}
+
+last_check_epoch() {
+  local raw ts
+  [[ -f "$LAST_CHECK_FILE" ]] || { printf '%s' 0; return 0; }
+  raw="$(tr -d '[:space:]' < "$LAST_CHECK_FILE" 2>/dev/null)"
+  if [[ "$raw" =~ ^[0-9]{10}$ ]]; then
+    printf '%s' "$raw"
+    return 0
+  fi
+  if [[ "$raw" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+    # Backward compatibility: treat a calendar-day stamp as checked at
+    # start of that day in the local timezone.
+    ts="$(date -d "$raw 00:00:00" +%s 2>/dev/null || printf '%s' 0)"
+    printf '%s' "$ts"
+    return 0
+  fi
+  printf '%s' 0
+}
+
+should_check_now() {
   [[ "$FORCE" -eq 1 ]] && return 0
-  [[ -f "$LAST_CHECK_FILE" ]] || return 0
-  [[ "$(cat "$LAST_CHECK_FILE" 2>/dev/null)" == "$(date '+%Y-%m-%d')" ]] && return 1
-  return 0
+  local last now interval
+  last="$(last_check_epoch)"
+  (( last == 0 )) && return 0
+  now="$(date +%s)"
+  interval="$(check_interval_seconds)"
+  (( now - last >= interval )) && return 0
+  return 1
 }
 
 mark_checked() {
-  date '+%Y-%m-%d' > "$LAST_CHECK_FILE" 2>/dev/null || true
+  date +%s > "$LAST_CHECK_FILE" 2>/dev/null || true
 }
+
+should_check_today() {
+  # Kept for backward compatibility with older code/tests.
+  should_check_now
+}
+
+# --- main ------------------------------------------------------------------
 
 main() {
   local current latest
@@ -529,8 +571,8 @@ main() {
     return 0
   fi
 
-  if ! should_check_today; then
-    log "already checked today, skipping"
+  if ! should_check_now; then
+    log "already checked recently, skipping"
     return 0
   fi
 
@@ -538,9 +580,9 @@ main() {
     log "another update is already running, skipping"
     return 0
   fi
-  mark_checked
 
-  latest="$(latest_version)" || { log "could not reach GitHub releases API"; return 0; }
+  latest="$(latest_version)" || { log "could not reach GitHub releases API"; release_lock; return 0; }
+  mark_checked
   [[ "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { log "unexpected latest version: $latest"; return 0; }
 
   if ! version_is_newer "$latest" "$current"; then

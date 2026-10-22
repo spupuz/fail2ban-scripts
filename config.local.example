@@ -39,6 +39,9 @@ FAIL2BAN_UI_CALLBACK_SECRET=__FAIL2BAN_UI_CALLBACK_SECRET__
 # Enable/disable automatic script updates from GitHub
 # Set to true to enable, false to disable
 AUTO_UPDATE_ENABLED=true
+# Minimum interval between update checks in hours (default: 24)
+# Set to 1 to check hourly, or use --force to check immediately
+AUTO_UPDATE_CHECK_INTERVAL_HOURS=24
 
 # ==============================
 # LOG ROTATION SETTINGS
