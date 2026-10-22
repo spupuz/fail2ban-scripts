@@ -5,6 +5,7 @@ import socket
 import json
 import urllib.request
 import html
+import concurrent.futures
 from fail2ban.server.ipdns import DNSUtils, IPAddr
 import datetime
 
@@ -242,8 +243,14 @@ def send_telegram_notification(ip, matching_domain, is_domain):
     """Send fancy formatted Telegram notification"""
     url = f"https://api.telegram.org/bot{TELEGRAM_API_TOKEN}/sendMessage"
 
-    reverse_dns = reverse_dns_lookup(ip)
-    geo_location = get_geo_location(ip)
+    # Bolt: Execute DNS lookup and GeoIP requests concurrently to avoid sequential blocking,
+    # significantly reducing execution time.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        future_dns = executor.submit(reverse_dns_lookup, ip)
+        future_geo = executor.submit(get_geo_location, ip)
+
+        reverse_dns = future_dns.result()
+        geo_location = future_geo.result()
     
     # Escape user-controlled inputs to prevent HTML injection DoS
     safe_reverse_dns = html.escape(reverse_dns)
