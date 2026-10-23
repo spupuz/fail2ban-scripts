@@ -333,6 +333,15 @@ non-existent file is not an error).
 
 ## Changelog
 
+### v0.4.5
+
+- **Security**: added explicit timeouts (10 s) to all external network calls —
+  Telegram API, GeoIP (`ipapi.co`) and reverse DNS lookups — in both
+  `fail2ban-telegram.sh` and `ignorehost.sh`, so a hanging external service
+  can no longer block the fail2ban action queue (DoS) (PR #4).
+- Feature: DNS and GeoIP lookups in `fail2ban-telegram.sh` now run concurrently
+  as background jobs with `wait`, reducing ban-notification latency (PR #5).
+
 ### v0.4.4
 
 - **Fix**: the updater and the deploy script no longer rely on the GNU-only
