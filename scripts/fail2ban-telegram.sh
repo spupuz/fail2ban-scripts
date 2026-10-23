@@ -37,12 +37,12 @@ function show_usage {
 
 # Perform reverse DNS lookup
 function reverse_dns_lookup {
-  python3 -c "import socket; print(socket.gethostbyaddr('$1')[0])" 2>/dev/null || echo "Not available"
+  python3 -c "import socket; socket.setdefaulttimeout(5); print(socket.gethostbyaddr('$1')[0])" 2>/dev/null || echo "Not available"
 }
 
 # Get geographical location
 function get_geo_location {
-  python3 -c "import urllib.request, json; data = json.loads(urllib.request.urlopen('https://ipapi.co/$1/json/').read()); print(f'{data[\"city\"]}, {data[\"region\"]}, {data[\"country_name\"]}')" 2>/dev/null || echo "Not available"
+  python3 -c "import urllib.request, json; data = json.loads(urllib.request.urlopen('https://ipapi.co/$1/json/', timeout=5).read()); print(f'{data[\"city\"]}, {data[\"region\"]}, {data[\"country_name\"]}')" 2>/dev/null || echo "Not available"
 }
 
 # Get current timestamp
@@ -132,8 +132,28 @@ function send_msg {
   
   # Get additional info for ban/unban actions
   if [[ "$action" == "ban" || "$action" == "unban" ]] && [ -n "$ip" ]; then
-    reverse_dns=$(reverse_dns_lookup "$ip")
-    geo_location=$(get_geo_location "$ip")
+    # Bolt: Execute DNS lookup and GeoIP requests concurrently using background jobs
+    # to avoid sequential blocking, reducing execution latency.
+    local dns_tmp geo_tmp
+    dns_tmp=$(mktemp)
+    geo_tmp=$(mktemp)
+
+    reverse_dns_lookup "$ip" > "$dns_tmp" &
+    local dns_pid=$!
+
+    get_geo_location "$ip" > "$geo_tmp" &
+    local geo_pid=$!
+
+    wait $dns_pid
+    wait $geo_pid
+
+    reverse_dns=$(cat "$dns_tmp")
+    [[ -n "$reverse_dns" ]] || reverse_dns="Not available"
+
+    geo_location=$(cat "$geo_tmp")
+    [[ -n "$geo_location" ]] || geo_location="Not available"
+
+    rm -f "$dns_tmp" "$geo_tmp"
   fi
   
   # Escape user-controlled inputs to prevent HTML injection DoS
@@ -144,7 +164,8 @@ function send_msg {
   local message=$(format_message "$action" "$ip" "$safe_reverse_dns" "$safe_geo_location")
   
   # Send message via Telegram API
-  local response=$(curl -s -X POST "$TELEGRAM_URL" \
+  # Bolt: Enforce a timeout to prevent Fail2Ban from blocking indefinitely
+  local response=$(curl --max-time 10 -s -X POST "$TELEGRAM_URL" \
     -d chat_id="$CHAT_ID" \
     --data-urlencode text="$message" \
     -d parse_mode="HTML" \
