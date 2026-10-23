@@ -37,12 +37,12 @@ function show_usage {
 
 # Perform reverse DNS lookup
 function reverse_dns_lookup {
-  python3 -c "import socket; print(socket.gethostbyaddr('$1')[0])" 2>/dev/null || echo "Not available"
+  python3 -c "import socket; socket.setdefaulttimeout(10); print(socket.gethostbyaddr('$1')[0])" 2>/dev/null || echo "Not available"
 }
 
 # Get geographical location
 function get_geo_location {
-  python3 -c "import urllib.request, json; data = json.loads(urllib.request.urlopen('https://ipapi.co/$1/json/').read()); print(f'{data[\"city\"]}, {data[\"region\"]}, {data[\"country_name\"]}')" 2>/dev/null || echo "Not available"
+  python3 -c "import urllib.request, json; data = json.loads(urllib.request.urlopen('https://ipapi.co/$1/json/', timeout=10).read()); print(f'{data[\"city\"]}, {data[\"region\"]}, {data[\"country_name\"]}')" 2>/dev/null || echo "Not available"
 }
 
 # Get current timestamp
@@ -144,7 +144,7 @@ function send_msg {
   local message=$(format_message "$action" "$ip" "$safe_reverse_dns" "$safe_geo_location")
   
   # Send message via Telegram API
-  local response=$(curl -s -X POST "$TELEGRAM_URL" \
+  local response=$(curl -s --max-time 10 -X POST "$TELEGRAM_URL" \
     -d chat_id="$CHAT_ID" \
     --data-urlencode text="$message" \
     -d parse_mode="HTML" \

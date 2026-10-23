@@ -9,6 +9,9 @@ import concurrent.futures
 from fail2ban.server.ipdns import DNSUtils, IPAddr
 import datetime
 
+# Set a global timeout for all socket operations (e.g. DNS lookups)
+socket.setdefaulttimeout(10)
+
 # Allowed domains and hosts
 # These are loaded from config.local at runtime.
 # If config.local is missing, placeholder values are used.
@@ -186,7 +189,7 @@ def reverse_dns_lookup(ip):
 def get_geo_location(ip):
     """Get geographical location of IP"""
     try:
-        with urllib.request.urlopen(f"https://ipapi.co/{ip}/json/") as response:
+        with urllib.request.urlopen(f"https://ipapi.co/{ip}/json/", timeout=10) as response:
             data = json.loads(response.read())
         return f"{data['city']}, {data['region']}, {data['country_name']}"
     except:
@@ -273,7 +276,7 @@ def send_telegram_notification(ip, matching_domain, is_domain):
             data=json.dumps(data).encode(), 
             headers={"Content-Type": "application/json"}
         )
-        response = urllib.request.urlopen(req)
+        response = urllib.request.urlopen(req, timeout=10)
         
         # Check if request was successful
         if response.getcode() != 200:
