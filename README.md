@@ -335,6 +335,10 @@ non-existent file is not an error).
 
 ### v0.4.5
 
+### v0.5.0
+- Merge PR #7: Sentinel: [CRITICAL] Fix command injection vulnerability in log_rotate.sh
+- Merge PR #6: Bolt: Use concurrent DNS lookups in ignorehost.sh with daemon threads
+
 - **Security**: added explicit timeouts (10 s) to all external network calls —
   Telegram API, GeoIP (`ipapi.co`) and reverse DNS lookups — in both
   `fail2ban-telegram.sh` and `ignorehost.sh`, so a hanging external service
