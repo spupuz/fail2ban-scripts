@@ -23,6 +23,10 @@ run/
 *~
 .DS_Store
 
+# OpenCode harness files (session-specific)
+.agents/
+.opencode/commands/
+
 # Python
 pycache/
 scripts/__pycache__
