@@ -6,6 +6,8 @@ import json
 import urllib.request
 import html
 import concurrent.futures
+import threading
+import time
 from fail2ban.server.ipdns import DNSUtils, IPAddr
 import datetime
 
@@ -146,7 +148,20 @@ def process_args(argv):
 
 def is_allowed_ip(ip):
     """Check if IP belongs to allowed domains"""
-    for domain in ALLOWED_DOMAINS:
+    if not ALLOWED_DOMAINS:
+        return False
+
+    # Bolt: Execute DNS lookups concurrently using daemon threads to avoid
+    # sequential blocking, significantly reducing execution time.
+    # Daemon threads ensure the script can exit early if a match is found
+    # without blocking on hanging DNS lookups.
+    result = None
+    event = threading.Event()
+
+    def worker(domain):
+        nonlocal result
+        if event.is_set():
+            return
         try:
             # getaddrinfo supports both IPv4 and IPv6
             # It returns a list of tuples: (family, type, proto, canonname, sockaddr)
@@ -154,10 +169,22 @@ def is_allowed_ip(ip):
             addr_info = socket.getaddrinfo(domain, None)
             allowed_ips = [info[4][0] for info in addr_info]
             if ip in allowed_ips:
-                return domain
-        except:
-            continue
-    return False
+                result = domain
+                event.set()
+        except Exception:
+            pass
+
+    threads = []
+    for domain in ALLOWED_DOMAINS:
+        t = threading.Thread(target=worker, args=(domain,), daemon=True)
+        t.start()
+        threads.append(t)
+
+    # Wait for a match or for all threads to complete
+    while not event.is_set() and any(t.is_alive() for t in threads):
+        time.sleep(0.01)
+
+    return result or False
 
 def is_allowed_host(ip):
     """Check if IP belongs to allowed hosts"""
