@@ -5,7 +5,6 @@ import socket
 import json
 import urllib.request
 import html
-import concurrent.futures
 import threading
 import time
 from fail2ban.server.ipdns import DNSUtils, IPAddr
@@ -273,14 +272,32 @@ def send_telegram_notification(ip, matching_domain, is_domain):
     """Send fancy formatted Telegram notification"""
     url = f"https://api.telegram.org/bot{TELEGRAM_API_TOKEN}/sendMessage"
 
-    # Bolt: Execute DNS lookup and GeoIP requests concurrently to avoid sequential blocking,
-    # significantly reducing execution time.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        future_dns = executor.submit(reverse_dns_lookup, ip)
-        future_geo = executor.submit(get_geo_location, ip)
+    # Bolt: Execute DNS lookup and GeoIP requests concurrently using daemon threads
+    # to avoid sequential blocking, significantly reducing execution time.
+    # ThreadPoolExecutor is avoided because it registers an atexit handler
+    # that joins non-daemon threads, causing the script to hang on slow network requests.
+    results = {}
+    def worker_dns():
+        results['dns'] = reverse_dns_lookup(ip)
 
-        reverse_dns = future_dns.result()
-        geo_location = future_geo.result()
+    def worker_geo():
+        results['geo'] = get_geo_location(ip)
+
+    t_dns = threading.Thread(target=worker_dns, daemon=True)
+    t_geo = threading.Thread(target=worker_geo, daemon=True)
+
+    t_dns.start()
+    t_geo.start()
+
+    # Wait for the lookups to complete with a 10s maximum timeout overall
+    start_time = time.time()
+    t_dns.join(timeout=10)
+    elapsed = time.time() - start_time
+    remaining = max(0, 10 - elapsed)
+    t_geo.join(timeout=remaining)
+
+    reverse_dns = results.get('dns', "Not available")
+    geo_location = results.get('geo', "Not available")
     
     # Escape user-controlled inputs to prevent HTML injection DoS
     safe_reverse_dns = html.escape(reverse_dns)
