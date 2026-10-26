@@ -521,8 +521,15 @@ telegram_notify() { # $1 = message
   chat_id="$(read_setting "$CONFIG_FILE" TELEGRAM_CHAT_ID_NOTIFY)"
   [[ -n "$token" && -n "$chat_id" ]] || return 0
 
-  payload="$(printf '{"chat_id":"%s","text":"%s","parse_mode":"HTML","disable_web_page_preview":true}' \
-             "$chat_id" "${message//\"/\\\"}")"
+  # Use Python's json.dumps to safely encode the message and build the JSON payload
+  payload="$(python3 -c "import json, sys; print(json.dumps({'chat_id': sys.argv[1], 'text': sys.argv[2], 'parse_mode': 'HTML', 'disable_web_page_preview': True}))" "$chat_id" "$message" 2>/dev/null)"
+
+  # Fallback to simple escaping if Python fails for any reason
+  if [[ -z "$payload" ]]; then
+    local safe_message="${message//$'\n'/\\n}"
+    payload="$(printf '{"chat_id":"%s","text":"%s","parse_mode":"HTML","disable_web_page_preview":true}' \
+               "$chat_id" "${safe_message//\"/\\\"}")"
+  fi
 
   curl -fsSL --max-time 20 -X POST "https://api.telegram.org/bot${token}/sendMessage" \
        -H 'Content-Type: application/json' -d "$payload" >/dev/null 2>&1 || true

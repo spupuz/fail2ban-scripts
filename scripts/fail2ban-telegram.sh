@@ -37,12 +37,12 @@ function show_usage {
 
 # Perform reverse DNS lookup
 function reverse_dns_lookup {
-  python3 -c "import socket; socket.setdefaulttimeout(10); print(socket.gethostbyaddr('$1')[0])" 2>/dev/null || echo "Not available"
+  python3 -c "import socket, sys; socket.setdefaulttimeout(10); print(socket.gethostbyaddr(sys.argv[1])[0])" "$1" 2>/dev/null || echo "Not available"
 }
 
 # Get geographical location
 function get_geo_location {
-  python3 -c "import urllib.request, json; data = json.loads(urllib.request.urlopen('https://ipapi.co/$1/json/', timeout=10).read()); print(f'{data[\"city\"]}, {data[\"region\"]}, {data[\"country_name\"]}')" 2>/dev/null || echo "Not available"
+  python3 -c "import urllib.request, json, sys; data = json.loads(urllib.request.urlopen('https://ipapi.co/' + sys.argv[1] + '/json/', timeout=10).read()); print(f'{data[\"city\"]}, {data[\"region\"]}, {data[\"country_name\"]}')" "$1" 2>/dev/null || echo "Not available"
 }
 
 # Get current timestamp
