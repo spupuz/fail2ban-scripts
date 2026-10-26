@@ -336,6 +336,8 @@ non-existent file is not an error).
 ### v0.4.5
 
 ### v0.5.0
+- Merge PR #10: Sentinel: [HIGH] Fix code and JSON injection vulnerabilities in telegram notification scripts and version_check.sh
+- Merge PR #8: Bolt: Replace ThreadPoolExecutor with daemon threads in ignorehost.sh
 - Merge PR #7: Sentinel: [CRITICAL] Fix command injection vulnerability in log_rotate.sh
 - Merge PR #6: Bolt: Use concurrent DNS lookups in ignorehost.sh with daemon threads
 
@@ -345,6 +347,10 @@ non-existent file is not an error).
   can no longer block the fail2ban action queue (DoS) (PR #4).
 - Feature: DNS and GeoIP lookups in `fail2ban-telegram.sh` now run concurrently
   as background jobs with `wait`, reducing ban-notification latency (PR #5).
+
+### v0.6.0
+- Security fixes: code injection and JSON injection vulnerabilities resolved
+- Threading improvements: daemon thread replacements in ignorehost.sh
 
 ### v0.4.4
 
