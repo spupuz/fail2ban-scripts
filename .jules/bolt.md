@@ -10,3 +10,6 @@
 ## 2024-05-24 - Concurrent DNS Lookups in Fail2Ban Scripts
 **Learning:** `concurrent.futures.ThreadPoolExecutor` registers an `atexit` handler that automatically joins all non-daemon threads, which means short-lived scripts can hang on exit if there are slow or blocked tasks (e.g. slow DNS queries).
 **Action:** When implementing concurrent, short-circuiting network lookups in short-lived Python scripts, prefer `threading.Thread(daemon=True)` instead of `ThreadPoolExecutor` to ensure the process exits cleanly without blocking on abandoned tasks.
+## 2024-10-27 - Batch stat calls in Bash scripts
+**Learning:** Calling `stat` multiple times per file in a loop for log rotation or meta copying adds significant overhead due to process creation in Bash.
+**Action:** Consolidate multiple `stat -c` calls into a single call format string (e.g. `stat -c '%Y %s'`) and parse the output, halving the process creation overhead.
