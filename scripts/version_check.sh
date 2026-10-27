@@ -243,9 +243,10 @@ default_mode() { # $1 = destination path
 # Best effort: a failure never aborts the installation.
 copy_file_meta() { # $1 = reference file, # $2 = target file
   local ref="$1" target="$2" mode owner
-  mode="$(stat -c '%a' "$ref" 2>/dev/null)"
+  # Bolt: Batch stat calls into a single invocation to reduce process creation overhead.
+  local stat_out
+  stat_out="$(stat -c '%a %u:%g' "$ref" 2>/dev/null)" && read -r mode owner <<< "$stat_out"
   [[ -n "$mode" ]] && chmod "$mode" "$target" 2>/dev/null || true
-  owner="$(stat -c '%u:%g' "$ref" 2>/dev/null)"
   [[ -n "$owner" ]] && chown "$owner" "$target" 2>/dev/null || true
   return 0
 }

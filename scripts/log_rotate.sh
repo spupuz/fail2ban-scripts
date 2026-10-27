@@ -190,8 +190,10 @@ errors=0
 for file in "${candidates[@]}"; do
   [[ -f "$file" ]] || continue
 
-  file_age="$(stat -c %Y "$file" 2>/dev/null || echo 0)"
-  file_size="$(stat -c %s "$file" 2>/dev/null || echo 0)"
+  # Bolt: Batch stat calls into a single invocation per file to reduce
+  # process creation overhead inside the loop.
+  stat_out="$(stat -c '%Y %s' "$file" 2>/dev/null)" || stat_out="0 0"
+  read -r file_age file_size <<< "$stat_out"
 
   if [[ "$file_age" -eq 0 ]]; then
     kept=$((kept + 1))
