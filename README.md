@@ -348,6 +348,10 @@ non-existent file is not an error).
 - Feature: DNS and GeoIP lookups in `fail2ban-telegram.sh` now run concurrently
   as background jobs with `wait`, reducing ban-notification latency (PR #5).
 
+### v0.6.1
+- Merge PR #12: Sentinel: [CRITICAL] Fix command injection in ui-custom-action.conf (replace `<fq-hostname>` with static 'Not checked')
+- Merge PR #11: Bolt: optimize batched stat calls to reduce bash process creation overhead
+
 ### v0.6.0
 - Security fixes: code injection and JSON injection vulnerabilities resolved
 - Threading improvements: daemon thread replacements in ignorehost.sh
