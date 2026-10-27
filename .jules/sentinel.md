@@ -14,3 +14,9 @@
 **Vulnerability:** Bash variables were interpolated directly into executable strings (`python3 -c "print('$1')"`) or structured formats (JSON templates using `printf`), exposing the application to code execution or JSON injection vulnerabilities if the variables contained quotes or unescaped control characters like newlines.
 **Learning:** String interpolation of variables in contexts where they will be evaluated as code or syntax structures bypasses validation and can lead to injection attacks. In the JSON case, newlines broke the JSON format, causing silent failures.
 **Prevention:** Never use string interpolation (e.g., `'$var'`) to pass arguments to scripts or data structures. Instead, use parameter arrays (like `sys.argv[1]` in Python and passing the bash argument as a script parameter `"$1"`) or libraries specifically designed to encode the data format securely (like `json.dumps()` in Python instead of `printf` for JSON).
+
+## 2026-10-27 - Command Injection via Fail2ban Tag Interpolation
+
+**Vulnerability:** In `action.d/ui-custom-action.conf`, the attacker-controlled `<fq-hostname>` tag (resolved via reverse DNS) was interpolated directly into the `jq` arguments of the `actionban` and `actionunban` shell commands. This allowed command injection if an attacker configured a malicious PTR record containing shell metacharacters.
+**Learning:** Fail2ban action tags (like `<fq-hostname>`) are directly substituted as strings into the action command *before* shell execution. Any unescaped single quotes within the substituted string can break out of shell quoting, leading to critical RCE vulnerabilities.
+**Prevention:** Avoid interpolating attacker-controlled tags directly into shell commands. Remove them from the action definition (e.g., replace with safe static values like `'Not checked'`) or resolve them securely within an invoked script.
