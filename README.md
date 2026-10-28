@@ -333,6 +333,9 @@ non-existent file is not an error).
 
 ## Changelog
 
+### v0.6.2
+- Merge PR #13: Bolt: Add early return before expensive DNS lookup in ignorehost
+
 ### v0.4.5
 
 ### v0.5.0
