@@ -13,3 +13,7 @@
 ## 2024-10-27 - Batch stat calls in Bash scripts
 **Learning:** Calling `stat` multiple times per file in a loop for log rotation or meta copying adds significant overhead due to process creation in Bash.
 **Action:** Consolidate multiple `stat -c` calls into a single call format string (e.g. `stat -c '%Y %s'`) and parse the output, halving the process creation overhead.
+
+## 2025-05-18 - Early return before expensive I/O operations
+**Learning:** If a function performs expensive I/O (like a DNS lookup) to compare its result against a filter list, and that list can be empty, the I/O operation acts as a severe, unnecessary bottleneck. In single-threaded synchronous contexts like Fail2ban's action queue, this blocks the entire service.
+**Action:** Always check if filter lists (like allowed hosts/domains) are empty and short-circuit (early return) *before* invoking any expensive operations (e.g., DNS resolution or external API calls).

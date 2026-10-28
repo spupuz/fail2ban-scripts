@@ -187,6 +187,9 @@ def is_allowed_ip(ip):
 
 def is_allowed_host(ip):
     """Check if IP belongs to allowed hosts"""
+    if not ALLOWED_HOSTS:
+        return False
+
     host = DNSUtils.ipToName(ip)
     if not host:
         return False
