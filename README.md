@@ -333,6 +333,10 @@ non-existent file is not an error).
 
 ## Changelog
 
+### v0.6.3
+- Merge PR #14: Bolt: Replace pipeline subshells with pure Bash in config parsing
+- Merge PR #15: Sentinel: Fix JSON injection vulnerability in version_check.sh telegram fallback
+
 ### v0.6.2
 - Merge PR #13: Bolt: Add early return before expensive DNS lookup in ignorehost
 
