@@ -17,3 +17,7 @@
 ## 2025-05-18 - Early return before expensive I/O operations
 **Learning:** If a function performs expensive I/O (like a DNS lookup) to compare its result against a filter list, and that list can be empty, the I/O operation acts as a severe, unnecessary bottleneck. In single-threaded synchronous contexts like Fail2ban's action queue, this blocks the entire service.
 **Action:** Always check if filter lists (like allowed hosts/domains) are empty and short-circuit (early return) *before* invoking any expensive operations (e.g., DNS resolution or external API calls).
+
+## 2025-05-18 - Pure Bash configuration parsing
+**Learning:** Using external binaries in a pipeline (e.g., `grep | tail | cut | tr`) for configuration parsing inside a loop or frequently called function spawns multiple sub-processes, resulting in a measurable performance overhead.
+**Action:** Replace shell pipelines with pure Bash implementations using `while IFS= read -r line` and string manipulations (`${var#*=}`, `${var//[[:space:]]/}`) for simple key-value extractions. This eliminates process creation overhead and significantly accelerates execution.

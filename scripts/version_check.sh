@@ -128,7 +128,11 @@ done
 read_setting() { # $1 = file, $2 = key
   local file="$1" key="$2" value=""
   [[ -f "$file" ]] || { printf '%s' ""; return 0; }
-  value="$(grep -E "^${key}=" "$file" 2>/dev/null | tail -n 1 | cut -d '=' -f 2- | tr -d '[:space:]')"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" == "$key="* ]] || continue
+    value="${line#*=}"
+    value="${value//[[:space:]]/}"
+  done < "$file"
   printf '%s' "$value"
 }
 
