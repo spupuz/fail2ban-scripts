@@ -20,3 +20,8 @@
 **Vulnerability:** In `action.d/ui-custom-action.conf`, the attacker-controlled `<fq-hostname>` tag (resolved via reverse DNS) was interpolated directly into the `jq` arguments of the `actionban` and `actionunban` shell commands. This allowed command injection if an attacker configured a malicious PTR record containing shell metacharacters.
 **Learning:** Fail2ban action tags (like `<fq-hostname>`) are directly substituted as strings into the action command *before* shell execution. Any unescaped single quotes within the substituted string can break out of shell quoting, leading to critical RCE vulnerabilities.
 **Prevention:** Avoid interpolating attacker-controlled tags directly into shell commands. Remove them from the action definition (e.g., replace with safe static values like `'Not checked'`) or resolve them securely within an invoked script.
+
+## 2024-10-29 - Prevent JSON Injection in Fallback Payload Generation
+**Vulnerability:** JSON injection vulnerability in `version_check.sh` due to string interpolation in a `printf` fallback for Telegram message formatting.
+**Learning:** Even fallback code paths must use safe serialization methods. Simple string replacement (e.g., escaping quotes) fails to account for all JSON syntax requirements (like control characters), allowing malicious payloads to break the JSON structure.
+**Prevention:** Never use string interpolation (`printf`, `echo`) to construct structured formats (JSON, XML). Always use dedicated serialization tools like `json.dumps` (Python) or `jq --arg` (Bash) which handle proper encoding natively.
