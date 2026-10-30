@@ -21,3 +21,7 @@
 ## 2025-05-18 - Pure Bash configuration parsing
 **Learning:** Using external binaries in a pipeline (e.g., `grep | tail | cut | tr`) for configuration parsing inside a loop or frequently called function spawns multiple sub-processes, resulting in a measurable performance overhead.
 **Action:** Replace shell pipelines with pure Bash implementations using `while IFS= read -r line` and string manipulations (`${var#*=}`, `${var//[[:space:]]/}`) for simple key-value extractions. This eliminates process creation overhead and significantly accelerates execution.
+
+## 2025-05-18 - Pure Bash String Replacement
+**Learning:** Using external binaries in a pipeline like `echo | sed` inside bash functions spawns multiple sub-processes, resulting in a measurable performance overhead, especially if called multiple times.
+**Action:** Replace `sed` based string replacements with pure Bash parameter expansions (`${var//search/replace}`) to eliminate process creation overhead and significantly accelerate execution.

@@ -119,7 +119,14 @@ function format_message {
 
 # Escape HTML special characters for Telegram's HTML parse_mode
 function escape_html {
-  echo "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g'
+  local val="$1"
+  # Bolt: Use pure Bash string replacement to avoid spawning sed and subshells,
+  # significantly improving performance by eliminating process creation overhead.
+  val="${val//&/&amp;}"
+  val="${val//</&lt;}"
+  val="${val//>/&gt;}"
+  val="${val//\"/&quot;}"
+  printf '%s' "$val"
 }
 
 # Send notification with enhanced formatting
