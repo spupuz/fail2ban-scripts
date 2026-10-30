@@ -130,12 +130,12 @@ load_config_defaults
 
 # Validate that MAX_AGE and MAX_SIZE_MB are purely numeric to prevent
 # command injection in arithmetic contexts like $(( MAX_AGE * 86400 )).
-if ! [[ "$MAX_AGE" =~ ^[0-9]+$ ]]; then
+if ! [[ "$MAX_AGE" =~ ^[1-9][0-9]*$ ]]; then
   fail "LOG_ROTATE_MAX_AGE must be a positive integer, got '$MAX_AGE'"
   exit 1
 fi
 
-if ! [[ "$MAX_SIZE_MB" =~ ^[0-9]+$ ]]; then
+if ! [[ "$MAX_SIZE_MB" =~ ^[1-9][0-9]*$ ]]; then
   fail "LOG_ROTATE_MAX_SIZE must be a positive integer, got '$MAX_SIZE_MB'"
   exit 1
 fi
