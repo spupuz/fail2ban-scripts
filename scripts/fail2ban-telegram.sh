@@ -78,27 +78,30 @@ function format_message {
   local geo_location="$4"
   
   local timestamp=$(get_timestamp)
-  local hostname=$(hostname)
+  local raw_hostname=$(hostname)
   local scripts_version=$(get_scripts_version)
+
+  # Escape user/host-controlled values to prevent HTML injection
+  local safe_hostname=$(escape_html "$raw_hostname")
 
   case "$action" in
     "start")
       echo -e "<b>${EMOJI_START} Fail2ban Service Started</b>\n\n"\
-              "<b>🖥️  Server:</b> ${hostname}\n"\
+              "<b>🖥️  Server:</b> ${safe_hostname}\n"\
               "<b>🕐 Time:</b> ${timestamp}\n"\
               "<b>📦 Scripts version:</b> ${scripts_version}\n"\
               "<b>📝 Status:</b> Service has been started successfully"
       ;;
     "stop")
       echo -e "<b>${EMOJI_STOP} Fail2ban Service Stopped</b>\n\n"\
-              "<b>🖥️  Server:</b> ${hostname}\n"\
+              "<b>🖥️  Server:</b> ${safe_hostname}\n"\
               "<b>🕐 Time:</b> ${timestamp}\n"\
               "<b>📦 Scripts version:</b> ${scripts_version}\n"\
               "<b>📝 Status:</b> Service has been stopped"
       ;;
     "ban")
       echo -e "<b>${EMOJI_BAN} IP Address Banned</b>\n\n"\
-              "<b>🖥️  Server:</b> ${hostname}\n"\
+              "<b>🖥️  Server:</b> ${safe_hostname}\n"\
               "<b>🕐 Time:</b> ${timestamp}\n"\
               "<b>📦 Scripts version:</b> ${scripts_version}\n"\
               "<b>🆔 IP:</b> ${ip}\n"\
@@ -107,7 +110,7 @@ function format_message {
       ;;
     "unban")
       echo -e "<b>${EMOJI_UNBAN} IP Address Unbanned</b>\n\n"\
-              "<b>🖥️  Server:</b> ${hostname}\n"\
+              "<b>🖥️  Server:</b> ${safe_hostname}\n"\
               "<b>🕐 Time:</b> ${timestamp}\n"\
               "<b>📦 Scripts version:</b> ${scripts_version}\n"\
               "<b>🆔 IP:</b> ${ip}\n"\
