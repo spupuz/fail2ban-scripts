@@ -233,19 +233,12 @@ if [ $# -lt 1 ]; then
   show_usage
 fi
 
-# Validate IP address if provided
+# Validate IP address if provided (supports IPv4 and IPv6)
 if [ -n "$2" ]; then
-  if ! [[ "$2" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]]; then
+  if ! python3 -c "import ipaddress,sys; ipaddress.ip_address(sys.argv[1])" "$2" 2>/dev/null; then
     echo "Error: Invalid IP address format" >&2
     exit 1
   fi
-  # Validate each octet is in range 0-255
-  for octet in "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"; do
-    if (( octet > 255 )); then
-      echo "Error: Invalid IP address: octet $octet out of range (0-255)" >&2
-      exit 1
-    fi
-  done
 fi
 
 # Take action depending on argument
