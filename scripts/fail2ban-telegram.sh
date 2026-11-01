@@ -64,7 +64,8 @@ function get_scripts_version {
   fi
   local version="unknown"
   if [[ -f "$version_file" ]]; then
-    version="$(tr -d '[:space:]' < "$version_file" 2>/dev/null)"
+    read -r version < "$version_file" 2>/dev/null || true
+    version="${version//[[:space:]]/}"
     [[ -n "$version" ]] || version="unknown"
   fi
   printf '%s' "$version"
@@ -154,10 +155,11 @@ function send_msg {
     wait $dns_pid
     wait $geo_pid
 
-    reverse_dns=$(cat "$dns_tmp")
+    # Bolt: Replace $(cat ...) with $(<...) to avoid spawning a subshell process
+    reverse_dns=$(<"$dns_tmp")
     [[ -n "$reverse_dns" ]] || reverse_dns="Not available"
 
-    geo_location=$(cat "$geo_tmp")
+    geo_location=$(<"$geo_tmp")
     [[ -n "$geo_location" ]] || geo_location="Not available"
 
     rm -f "$dns_tmp" "$geo_tmp"

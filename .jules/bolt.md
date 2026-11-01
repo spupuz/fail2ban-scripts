@@ -25,3 +25,7 @@
 ## 2025-05-18 - Pure Bash String Replacement
 **Learning:** Using external binaries in a pipeline like `echo | sed` inside bash functions spawns multiple sub-processes, resulting in a measurable performance overhead, especially if called multiple times.
 **Action:** Replace `sed` based string replacements with pure Bash parameter expansions (`${var//search/replace}`) to eliminate process creation overhead and significantly accelerate execution.
+
+## 2024-03-24 - Avoid cat and tr subshells
+**Learning:** Using `$(cat file)` and `tr -d '[:space:]'` to process files creates unnecessary subprocesses, causing measurable overhead in simple string processing loops. Pure Bash alternatives are significantly faster.
+**Action:** Use `$(<file)` to read entire files natively, and `read -r var < file; var="${var//[[:space:]]/}"` for single-line parsing to avoid process forks.

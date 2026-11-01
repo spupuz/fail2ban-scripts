@@ -185,7 +185,10 @@ trap release_lock EXIT
 
 current_version() {
   [[ -f "$VERSION_FILE" ]] || return 1
-  tr -d '[:space:]' < "$VERSION_FILE"
+  # Bolt: Use pure Bash read instead of spawning tr subprocess to remove whitespace
+  local raw=""
+  read -r raw < "$VERSION_FILE" 2>/dev/null || true
+  printf "%s" "${raw//[[:space:]]/}"
 }
 
 latest_version() {
@@ -558,7 +561,9 @@ check_interval_seconds() {
 last_check_epoch() {
   local raw ts
   [[ -f "$LAST_CHECK_FILE" ]] || { printf '%s' 0; return 0; }
-  raw="$(tr -d '[:space:]' < "$LAST_CHECK_FILE" 2>/dev/null)"
+  # Bolt: Use pure Bash read instead of spawning tr subprocess to remove whitespace
+  read -r raw < "$LAST_CHECK_FILE" 2>/dev/null || true
+  raw="${raw//[[:space:]]/}"
   if [[ "$raw" =~ ^[0-9]{10}$ ]]; then
     printf '%s' "$raw"
     return 0
