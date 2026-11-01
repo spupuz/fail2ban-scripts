@@ -147,6 +147,8 @@ function send_msg {
     local dns_tmp geo_tmp
     dns_tmp=$(mktemp)
     geo_tmp=$(mktemp)
+    # Sentinel: ensure temp files are removed even on early exit/interrupt
+    trap 'rm -f "$dns_tmp" "$geo_tmp"' RETURN
 
     reverse_dns_lookup "$ip" > "$dns_tmp" &
     local dns_pid=$!

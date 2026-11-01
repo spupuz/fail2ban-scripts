@@ -106,6 +106,12 @@ if [[ ! -f "$SECRETS" ]]; then
   exit 1
 fi
 
+# Warn if secrets file permissions are too loose (must be 0600 or stricter).
+secrets_mode="$(stat -c '%a' "$SECRETS" 2>/dev/null || echo '')"
+if [[ -n "$secrets_mode" && "$secrets_mode" != "600" && "$secrets_mode" != "400" && "$secrets_mode" != "700" ]]; then
+  echo "WARNING: secrets file $SECRETS has mode $secrets_mode; recommended mode is 600." >&2
+fi
+
 # Load secrets (KEY=VALUE lines, '#' comments ignored) without leaking them.
 declare -A SECRET_MAP
 while IFS='=' read -r key value; do
