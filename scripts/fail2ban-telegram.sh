@@ -235,10 +235,17 @@ fi
 
 # Validate IP address if provided
 if [ -n "$2" ]; then
-  if ! [[ "$2" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+  if ! [[ "$2" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]]; then
     echo "Error: Invalid IP address format" >&2
     exit 1
   fi
+  # Validate each octet is in range 0-255
+  for octet in "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"; do
+    if (( octet > 255 )); then
+      echo "Error: Invalid IP address: octet $octet out of range (0-255)" >&2
+      exit 1
+    fi
+  done
 fi
 
 # Take action depending on argument
