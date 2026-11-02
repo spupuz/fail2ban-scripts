@@ -320,11 +320,11 @@ is_rendered() { # $1 = path relative to the installation root
 # missing secret, and the deployment must stop instead of writing a broken
 # file.
 expected_secret_keys() {
+  # Bolt: Replace external binaries (grep, tr) with sed to avoid multiple sub-processes
   local file
   for file in "$(secrets_file)" "$ROOT_DIR/config.local.example"; do
     [[ -f "$file" ]] || continue
-    grep -Eo '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=' "$file" 2>/dev/null \
-      | tr -d ' =' | sort -u
+    sed -nE 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)=.*/\1/p' "$file" 2>/dev/null | sort -u
   done
 }
 
