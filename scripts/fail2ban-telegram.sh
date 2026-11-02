@@ -243,14 +243,16 @@ if [ -n "$2" ]; then
     echo "Error: Invalid IP address format" >&2
     exit 1
   fi
-  # Validate each octet is within 0-255
-  IFS='.' read -r o1 o2 o3 o4 <<< "$2"
-  for octet in "$o1" "$o2" "$o3" "$o4"; do
-    if [ "$octet" -gt 255 ] 2>/dev/null; then
-      echo "Error: Invalid IP address format" >&2
-      exit 1
-    fi
-  done
+  # Validate each octet is within 0-255 (IPv4 only; IPv6 has no octets)
+  if [[ "$2" == *.* && "$2" != *:* ]]; then
+    IFS='.' read -r o1 o2 o3 o4 <<< "$2"
+    for octet in "$o1" "$o2" "$o3" "$o4"; do
+      if ! [[ "$octet" =~ ^[0-9]+$ ]] || [ "$octet" -gt 255 ]; then
+        echo "Error: Invalid IP address format" >&2
+        exit 1
+      fi
+    done
+  fi
 fi
 
 # Take action depending on argument
