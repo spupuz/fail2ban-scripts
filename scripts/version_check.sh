@@ -192,19 +192,21 @@ current_version() {
 }
 
 latest_version() {
-  local json tag url
+  local json tag
+  # ⚡ Bolt: Parse the GitHub releases JSON with python3 instead of grep/cut,
+  # which is fragile to whitespace/field-order changes in the API response.
   json="$(curl -fsSL --max-time 15 -H 'Accept: application/vnd.github+json' \
           "$GITHUB_API/releases/latest" 2>/dev/null)" || json=""
-  tag="$(printf '%s' "$json" | grep -m1 '"tag_name"' | cut -d '"' -f 4)" || tag=""
+  tag="$(printf '%s' "$json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tag_name",""))' 2>/dev/null)" || tag=""
   if [[ "$tag" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     printf '%s' "${tag#v}"
     return 0
   fi
   # Fallback: the API is rate limited (60 requests per hour and IP), the
   # releases page redirects to the latest tag and is not rate limited.
-  url="$(curl -fsSL --max-time 15 -o /dev/null -w '%{url_effective}' \
+  tag="$(curl -fsSL --max-time 15 -o /dev/null -w '%{url_effective}' \
          "https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest" 2>/dev/null)" || return 1
-  tag="${url##*/}"
+  tag="${tag##*/}"
   [[ "$tag" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
   printf '%s' "${tag#v}"
 }
