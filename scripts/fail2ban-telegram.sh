@@ -258,7 +258,11 @@ if [ -n "$2" ]; then
   if [[ "$2" == *.* && "$2" != *:* ]]; then
     IFS='.' read -r o1 o2 o3 o4 <<< "$2"
     for octet in "$o1" "$o2" "$o3" "$o4"; do
-      if ! [[ "$octet" =~ ^[0-9]+$ ]] || [ "$octet" -gt 255 ]; then
+      # Strip leading zeros before numeric comparison: bash `[ ] -gt` treats
+      # values with a leading zero as octal ("08"/"09" crash, "010" reads as 8).
+      octet_clean="${octet##0}"
+      [[ -z "$octet_clean" ]] && octet_clean=0
+      if ! [[ "$octet_clean" =~ ^[0-9]+$ ]] || [ "$octet_clean" -gt 255 ]; then
         echo "Error: Invalid IP address format" >&2
         exit 1
       fi
