@@ -27,7 +27,7 @@
 #   scripts/log_rotate.sh --dry-run                # preview without deleting
 #   scripts/log_rotate.sh --quiet                   # silent unless errors
 #   scripts/log_rotate.sh --force                   # ignore LOG_ROTATE_ENABLED
-set -uo pipefail
+set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE="$ROOT_DIR/config.local"
