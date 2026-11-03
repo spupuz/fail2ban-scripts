@@ -17,7 +17,7 @@ done
 
 # Determine installation directory: --dest overrides FAIL2BAN_DATA_DIR default
 if [[ -n "$DEST_DIR" ]]; then
-  INSTALL_DIR="$(cd "$DEST_DIR" 2>/dev/null && pwd)"/fail2ban-scripts"
+  INSTALL_DIR="$(cd "$DEST_DIR" 2>/dev/null && pwd)"/fail2ban-scripts
 else
   INSTALL_DIR="${FAIL2BAN_DATA_DIR:-/data}/fail2ban-scripts"
 fi
@@ -68,9 +68,10 @@ if [[ -n "$DEST_DIR" ]]; then
   echo "ℹ️  Installed at custom path: $DEST_DIR"
   echo "   Auto-updates will use this directory with: scripts/version_check.sh --dest $DEST_DIR"
 fi
-echo ""
-echo "Next steps:"
-echo "  1. Edit $CONFIG_LOCAL with your Telegram bot tokens and chat IDs"
-echo "  2. Configure ALLOWED_DOMAINS/ALLOWED_HOSTS as needed"
-echo "  3. Verify auto-update: scripts/version_check.sh --dest $INSTALL_DIR"
-echo "  4. Reload fail2ban: fail2ban-client reload"
+cat_nl() { printf '\n%s\n' "$1"; }
+cat_nl ""
+cat_nl "Next steps:"
+cat_nl "  1. Edit $CONFIG_LOCAL with your Telegram bot tokens and chat IDs"
+cat_nl "  2. Configure ALLOWED_DOMAINS/ALLOWED_HOSTS as needed"
+cat_nl "  3. Verify auto-update: scripts/version_check.sh --dest $INSTALL_DIR"
+cat_nl "  4. Reload fail2ban: fail2ban-client reload"
