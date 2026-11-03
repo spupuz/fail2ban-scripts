@@ -179,15 +179,22 @@ function send_msg {
   
   # Send message via Telegram API
   # Bolt: Enforce a timeout to prevent Fail2Ban from blocking indefinitely
-  local response=$(curl --max-time 10 -s -X POST "$TELEGRAM_URL" \
+  # Sentinel: capture HTTP status separately from body so the success check
+  # cannot be fooled by a "200" substring inside the response body.
+  local body_file http_code curl_rc
+  body_file=$(mktemp)
+  http_code=$(curl --max-time 10 -s -X POST "$TELEGRAM_URL" \
     -d chat_id="$CHAT_ID" \
     --data-urlencode text="$message" \
     -d parse_mode="HTML" \
+    -o "$body_file" \
     -w "%{http_code}")
-  
+  curl_rc=$?
+  rm -f "$body_file"
+
   # Check if message was sent successfully
-  if [[ "$response" != *200 ]]; then
-    echo "Error: Failed to send Telegram message. HTTP response code: $response" >&2
+  if [[ $curl_rc -ne 0 || "$http_code" != "200" ]]; then
+    echo "Error: Failed to send Telegram message. curl_rc=$curl_rc HTTP response code: $http_code" >&2
     return 1
   fi
   return 0
