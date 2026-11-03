@@ -170,12 +170,13 @@ function send_msg {
     rm -f "$dns_tmp" "$geo_tmp"
   fi
   
-  # Escape user-controlled inputs to prevent HTML injection DoS
+  # Escape user-controlled inputs to prevent HTML injection in Telegram message
+  local safe_ip=$(escape_html "$ip")
   local safe_reverse_dns=$(escape_html "$reverse_dns")
   local safe_geo_location=$(escape_html "$geo_location")
 
   # Format the message
-  local message=$(format_message "$action" "$ip" "$safe_reverse_dns" "$safe_geo_location")
+  local message=$(format_message "$action" "$safe_ip" "$safe_reverse_dns" "$safe_geo_location")
   
   # Send message via Telegram API
   # Bolt: Enforce a timeout to prevent Fail2Ban from blocking indefinitely
