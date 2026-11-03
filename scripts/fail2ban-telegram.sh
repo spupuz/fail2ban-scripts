@@ -42,7 +42,18 @@ function reverse_dns_lookup {
 
 # Get geographical location
 function get_geo_location {
-  python3 -c "import urllib.request, json, sys; data = json.loads(urllib.request.urlopen('https://ipapi.co/' + sys.argv[1] + '/json/', timeout=10).read()); print(f'{data[\"city\"]}, {data[\"region\"]}, {data[\"country_name\"]}')" "$1" 2>/dev/null || echo "Not available"
+  # Only query the geo API for a validated IPv4 address to avoid SSRF / injection.
+  if ! [[ "$1" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]]; then
+    echo "Not available"
+    return 0
+  fi
+  for octet in "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"; do
+    if (( octet > 255 )); then
+      echo "Not available"
+      return 0
+    fi
+  done
+  python3 -c "import urllib.request, json, sys; data = json.loads(urllib.request.urlopen('https://ipapi.co/' + sys.argv[1] + '/json/', timeout=10).read()); print(f\"{data.get('city','?')}, {data.get('region','?')}, {data.get('country_name','?')}\") " "$1" 2>/dev/null || echo "Not available"
 }
 
 # Get current timestamp
