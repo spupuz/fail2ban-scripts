@@ -1,10 +1,26 @@
 #!/bin/bash
 # Fail2Ban-Scripts automatic installer
 # Installs the scripts into a fail2ban data directory with config.local setup
+# Supporta path personalizzato via parametro --dest o variabile d'ambiente FAIL2BAN_DATA_DIR
 set -euo pipefail
 
 REPO="spupuz/fail2ban-scripts"
-INSTALL_DIR="${FAIL2BAN_DATA_DIR:-/data}/fail2ban-scripts"
+
+# Parse --dest parameter for custom installation path
+DEST_DIR=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dest) DEST_DIR="${2:?--dest requires a path}"; shift 2 ;;
+    *) echo "Unknown option: $1" >&2; exit 1 ;;
+  esac
+done
+
+# Determine installation directory: --dest overrides FAIL2BAN_DATA_DIR default
+if [[ -n "$DEST_DIR" ]]; then
+  INSTALL_DIR="$(cd "$DEST_DIR" 2>/dev/null && pwd)"/fail2ban-scripts"
+else
+  INSTALL_DIR="${FAIL2BAN_DATA_DIR:-/data}/fail2ban-scripts"
+fi
 
 echo "📦 Fail2Ban-Scripts installer"
 echo "=============================="
@@ -48,9 +64,13 @@ echo ""
 echo "✅ Installation complete!"
 echo "  Directory: $INSTALL_DIR"
 echo ""
+if [[ -n "$DEST_DIR" ]]; then
+  echo "ℹ️  Installed at custom path: $DEST_DIR"
+  echo "   Auto-updates will use this directory with: scripts/version_check.sh --dest $DEST_DIR"
+fi
+echo ""
 echo "Next steps:"
 echo "  1. Edit $CONFIG_LOCAL with your Telegram bot tokens and chat IDs"
 echo "  2. Configure ALLOWED_DOMAINS/ALLOWED_HOSTS as needed"
-echo "  3. Deploy to your fail2ban data directory:"
-echo "     scripts/deploy.sh --apply --dest /path/to/fail2ban/data"
+echo "  3. Verify auto-update: scripts/version_check.sh --dest $INSTALL_DIR"
 echo "  4. Reload fail2ban: fail2ban-client reload"
