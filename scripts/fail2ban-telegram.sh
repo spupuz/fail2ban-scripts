@@ -254,12 +254,11 @@ if [ -n "$2" ]; then
     echo "Error: Invalid IP address format" >&2
     exit 1
   fi
-  # For IPv4 only, ensure each octet is within 0-255 (ipaddress already
-  # validates ranges, but keep an explicit guard for clarity/safety).
-  if [[ "$2" == *.* ]]; then
+  # Validate each octet is within 0-255 (IPv4 only; IPv6 has no octets)
+  if [[ "$2" == *.* && "$2" != *:* ]]; then
     IFS='.' read -r o1 o2 o3 o4 <<< "$2"
     for octet in "$o1" "$o2" "$o3" "$o4"; do
-      if ! [[ "$octet" =~ ^[0-9]+$ ]] || (( octet > 255 )); then
+      if ! [[ "$octet" =~ ^[0-9]+$ ]] || [ "$octet" -gt 255 ]; then
         echo "Error: Invalid IP address format" >&2
         exit 1
       fi
