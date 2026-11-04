@@ -302,12 +302,14 @@ def send_telegram_notification(ip, matching_domain, is_domain):
     reverse_dns = results.get('dns', "Not available")
     geo_location = results.get('geo', "Not available")
     
-    # Escape user-controlled inputs to prevent HTML injection DoS
+    # Escape user-controlled inputs to prevent HTML injection in Telegram message
+    safe_ip = html.escape(ip)
+    safe_matching_domain = html.escape(matching_domain)
     safe_reverse_dns = html.escape(reverse_dns)
     safe_geo_location = html.escape(geo_location)
 
     # Format the fancy message
-    message = format_message(ip, matching_domain, is_domain, safe_reverse_dns, safe_geo_location)
+    message = format_message(safe_ip, safe_matching_domain, is_domain, safe_reverse_dns, safe_geo_location)
 
     # Prepare data with HTML parsing
     data = {
