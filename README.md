@@ -148,6 +148,12 @@ scripts/version_check.sh --check --dest /etc/fail2ban/data
 - Run `bash scripts/run_tests.sh` to verify all local tests pass
 - Configure your fail2ban jail to use the custom actions in `action.d/telegram.local`
 
+### v0.9.0
+- Merge PR #34: Add script reference table and config docs to README
+- Merge PR #33: Parse GitHub releases JSON with python3 for robust parsing
+- Merge PR #32: Escape user-controlled domain in Telegram HTML message
+- Merge PR #31: Escape user-controlled IP in Telegram HTML message
+
 ### v0.7.0
 - Merge PR #23: Validate IP octet range in fail2ban-telegram (security/sanity)
 - Merge PR #22: Add IPv4/IPv6 validation via ipaddress module (security)
