@@ -343,7 +343,8 @@ check_rendered() { # $1 = file
   # Any other leftover token is only reported: it can be a documentation
   # placeholder (a word between double underscores) inside a comment.
   local leftover
-  leftover="$(grep -oE '__[A-Z0-9_]+__' "$file" 2>/dev/null | sort -u | tr '\n' ' ')"
+  # Bolt: Replace external binaries (grep, sort, tr) with awk to avoid multiple sub-processes
+  leftover="$(awk '{ while(match($0, /__[A-Z0-9_]+__/)) { tok=substr($0, RSTART, RLENGTH); if(!a[tok]++) printf "%s%s", (c++ ? " " : ""), tok; $0=substr($0, RSTART+RLENGTH) } }' "$file" 2>/dev/null)"
   [[ -n "$leftover" ]] && warn "leftover placeholder(s) in $file: $leftover"
   return 0
 }
