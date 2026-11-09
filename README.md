@@ -148,6 +148,11 @@ scripts/version_check.sh --check --dest /etc/fail2ban/data
 - Run `bash scripts/run_tests.sh` to verify all local tests pass
 - Configure your fail2ban jail to use the custom actions in `action.d/telegram.local`
 
+### v0.9.1
+- Merge PR #37: Sentinel: Fix local privilege escalation via predictable temporary file paths in install.sh (security)
+- Merge PR #36: Sentinel: Replace fragile grep -oP release parsing in install.sh with python3 JSON (robustness)
+- Merge PR #35: Bolt: Consolidate external binary pipeline into single awk command in version_check.sh (performance)
+
 ### v0.9.0
 - Merge PR #34: Add script reference table and config docs to README
 - Merge PR #33: Parse GitHub releases JSON with python3 for robust parsing
