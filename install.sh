@@ -30,8 +30,8 @@ mkdir -p "$INSTALL_DIR/scripts"
 cd "$INSTALL_DIR"
 
 # Download and extract the latest release
-LATEST_TAG=$(curl -sSL "https://api.github.com/repos/$REPO/releases/latest" |
-  grep -oP '"tag_name": "\K[^"]+' || echo "v0.0.1")
+LATEST_TAG=$(curl -fsSL --max-time 15 "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null |
+  python3 -c 'import json,sys; print(json.load(sys.stdin).get("tag_name","v0.0.1"))' 2>/dev/null || echo "v0.0.1")
 echo "  Latest version: $LATEST_TAG"
 
 TMP_DIR="$(mktemp -d)"
