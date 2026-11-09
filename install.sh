@@ -34,16 +34,19 @@ LATEST_TAG=$(curl -sSL "https://api.github.com/repos/$REPO/releases/latest" |
   grep -oP '"tag_name": "\K[^"]+' || echo "v0.0.1")
 echo "  Latest version: $LATEST_TAG"
 
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
 # Download the release archive
-curl -sSL "https://github.com/$REPO/archive/$LATEST_TAG.tar.gz" -o /tmp/fail2ban-scripts.tar.gz
+curl -sSL "https://github.com/$REPO/archive/$LATEST_TAG.tar.gz" -o "$TMP_DIR/fail2ban-scripts.tar.gz"
 
 # Extract scripts (only the scripts directory and VERSION)
-mkdir -p /tmp/fail2ban-scripts-root
-tar -xzf /tmp/fail2ban-scripts.tar.gz -C /tmp/fail2ban-scripts-root
+mkdir -p "$TMP_DIR/fail2ban-scripts-root"
+tar -xzf "$TMP_DIR/fail2ban-scripts.tar.gz" -C "$TMP_DIR/fail2ban-scripts-root"
 
 # Copy scripts to installation directory
-cp -r /tmp/fail2ban-scripts-root/fail2ban-scripts-$LATEST_TAG/scripts/* scripts/
-cp /tmp/fail2ban-scripts-root/fail2ban-scripts-$LATEST_TAG/VERSION .
+cp -r "$TMP_DIR/fail2ban-scripts-root/fail2ban-scripts-$LATEST_TAG/scripts/"* scripts/
+cp "$TMP_DIR/fail2ban-scripts-root/fail2ban-scripts-$LATEST_TAG/VERSION" .
 
 # Set executable permissions
 chmod +x scripts/*.sh
@@ -56,9 +59,6 @@ if [[ ! -f "$CONFIG_LOCAL" ]]; then
   chmod 600 "$CONFIG_LOCAL"
   echo "  ⚠️  Remember to edit $CONFIG_LOCAL with your real secrets!"
 fi
-
-# Cleanup
-rm -rf /tmp/fail2ban-scripts-root /tmp/fail2ban-scripts.tar.gz
 
 echo ""
 echo "✅ Installation complete!"

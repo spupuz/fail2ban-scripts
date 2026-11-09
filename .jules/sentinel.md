@@ -25,3 +25,9 @@
 **Vulnerability:** JSON injection vulnerability in `version_check.sh` due to string interpolation in a `printf` fallback for Telegram message formatting.
 **Learning:** Even fallback code paths must use safe serialization methods. Simple string replacement (e.g., escaping quotes) fails to account for all JSON syntax requirements (like control characters), allowing malicious payloads to break the JSON structure.
 **Prevention:** Never use string interpolation (`printf`, `echo`) to construct structured formats (JSON, XML). Always use dedicated serialization tools like `json.dumps` (Python) or `jq --arg` (Bash) which handle proper encoding natively.
+
+## 2024-11-04 - Local Privilege Escalation via Predictable Temporary File Paths
+
+**Vulnerability:** In `install.sh`, downloaded archives and extracted root directory were hardcoded to predictable paths (`/tmp/fail2ban-scripts.tar.gz` and `/tmp/fail2ban-scripts-root`). Since `/tmp/` is world-writable, an attacker could pre-create these paths as symlinks to sensitive system locations.
+**Learning:** Any predictable file path in world-writable directories (like `/tmp/` or `/var/tmp/`) is vulnerable to symlink attacks, allowing arbitrary file creation, overwrite, or modification by malicious local actors, which is particularly severe in scripts run as root.
+**Prevention:** Always use `mktemp` (for files) or `mktemp -d` (for directories) to securely generate randomized temporary paths. Always add a `trap 'rm -rf "$TMP_DIR"' EXIT` to automatically clean them up upon script termination.
