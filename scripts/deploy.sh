@@ -180,8 +180,12 @@ copy_file_meta() { # $1 = reference file, # $2 = target file
   # Bolt: Batch stat calls into a single invocation to reduce process creation overhead.
   local stat_out
   stat_out="$(stat -c '%a %u:%g' "$ref" 2>/dev/null)" && read -r mode owner <<< "$stat_out"
-  [[ -n "$mode" ]] && chmod "$mode" "$target" 2>/dev/null || true
-  [[ -n "$owner" ]] && chown "$owner" "$target" 2>/dev/null || true
+  if [[ -n "$mode" ]]; then
+    chmod "$mode" "$target" 2>/dev/null || true
+  fi
+  if [[ -n "$owner" ]]; then
+    chown "$owner" "$target" 2>/dev/null || true
+  fi
   return 0
 }
 
