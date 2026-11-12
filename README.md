@@ -37,6 +37,9 @@ Copy `config.local.example` to `config.local` and customize.
 
 <!-- changelog below -->
 
+### v0.10.0
+- Merge PR #39: ⚡ Bolt: pure POSIX sh UUID generation in UI custom action
+
 ### v0.9.2
 - Merge PR #38: Bolt: Replace 'cmd && cmd || true' with explicit if (SC2015)
 
