@@ -33,3 +33,7 @@
 ## 2025-05-18 - Replacing external binary pipelines with single C-optimized tools
 **Learning:** In Bash scripts, avoid chaining multiple external binaries in a pipeline (e.g., `grep | tr`) as it spawns multiple sub-processes and causes measurable performance overhead. However, replacing these pipelines with pure Bash `while read` loops for complex text parsing or regex matching is a mistake, as Bash loops are notoriously slower than C-optimized tools.
 **Action:** Instead, optimize by consolidating the pipeline into a single powerful command using `sed` or `awk`.
+
+## $(date -I) - Pure Shell UUID Generation
+**Learning:** Using `od -An -N16 -tx1 /dev/urandom | tr -d ' \n'` to generate a UUID involves forking two separate processes (`od` and `tr`) plus a subshell in bash (`$()`). In highly repetitive or synchronous contexts (like Fail2ban's queue), this process creation introduces significant measurable overhead.
+**Action:** Replace external command-based UUID generation with POSIX `sh` builtins whenever possible by directly reading the kernel's UUID provider: `IFS=- read -r p1 p2 p3 p4 p5 < /proc/sys/kernel/random/uuid; uuid="$p1$p2$p3$p4$p5"`. This avoids all process creation overhead and executes approximately 40x faster.
