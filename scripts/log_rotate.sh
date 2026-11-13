@@ -224,19 +224,12 @@ for file in "${candidates[@]}"; do
       say "DRY-RUN: would delete ($reason): $file"
       deleted=$((deleted + 1))
     else
-      # Sentinel: Check file still exists before deletion (race condition protection)
-      # and verify it's still a regular file (not replaced with symlink)
-      if [[ -f "$file" && ! -L "$file" ]]; then
-        if rm -f "$file" 2>/dev/null; then
-          say "DELETED ($reason): $file"
-          deleted=$((deleted + 1))
-        else
-          warn "failed to delete: $file"
-          errors=$((errors + 1))
-        fi
-      else
-        # File was modified/deleted by another process, or is a symlink
+      if rm -f "$file" 2>/dev/null; then
+        say "DELETED ($reason): $file"
         deleted=$((deleted + 1))
+      else
+        warn "failed to delete: $file"
+        errors=$((errors + 1))
       fi
     fi
   else
