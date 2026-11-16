@@ -6,12 +6,26 @@ set -euo pipefail
 
 REPO="spupuz/fail2ban-scripts"
 
-# Parse --dest parameter for custom installation path
+usage() {
+  cat <<'USAGE'
+Usage:
+  install.sh [--dest DIR]
+  install.sh -h|--help
+
+Options:
+  --dest DIR    Install into DIR/fail2ban-scripts (overrides FAIL2BAN_DATA_DIR)
+  -h, --help    Show this help message
+USAGE
+  exit "${1:-0}"
+}
+
+# Parse arguments
 DEST_DIR=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dest) DEST_DIR="${2:?--dest requires a path}"; shift 2 ;;
-    *) echo "Unknown option: $1" >&2; exit 1 ;;
+    -h|--help) usage 0 ;;
+    *) echo "Unknown option: $1" >&2; usage 1 ;;
   esac
 done
 
