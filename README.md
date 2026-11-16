@@ -37,6 +37,9 @@ Copy `config.local.example` to `config.local` and customize.
 
 <!-- changelog below -->
 
+### v0.10.2
+- Merge PR #41: 🎨 Palette: Add `--help`/`-h` flags to install.sh for discoverability
+
 ### v0.10.1
 - Merge PR #40: 🛡️ Sentinel: Fix race condition and symlink protection in log_rotate.sh
 
