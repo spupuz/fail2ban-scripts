@@ -9,11 +9,12 @@ REPO="spupuz/fail2ban-scripts"
 usage() {
   cat <<'USAGE'
 Usage:
-  install.sh [--dest DIR]
+  install.sh [--dest DIR] [--force]
   install.sh -h|--help
 
 Options:
   --dest DIR    Install into DIR/fail2ban-scripts (overrides FAIL2BAN_DATA_DIR)
+  --force       Skip auto-update check and proceed with installation
   -h, --help    Show this help message
 USAGE
   exit "${1:-0}"
@@ -24,6 +25,7 @@ DEST_DIR=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dest) DEST_DIR="${2:?--dest requires a path}"; shift 2 ;;
+    --force) FORCE=1; shift ;;
     -h|--help) usage 0 ;;
     *) echo "Unknown option: $1" >&2; usage 1 ;;
   esac
@@ -44,9 +46,13 @@ mkdir -p "$INSTALL_DIR/scripts"
 cd "$INSTALL_DIR"
 
 # Download and extract the latest release
-LATEST_TAG=$(curl -fsSL --max-time 15 "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null |
-  python3 -c 'import json,sys; print(json.load(sys.stdin).get("tag_name","v0.0.1"))' 2>/dev/null || echo "v0.0.1")
+LATEST_TAG=$(curl -fsSL --max-time 15 -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null |
+  python3 -c 'import json,sys; tag=json.load(sys.stdin).get("tag_name",""); print(tag if tag and tag.strip().startswith("v") and __import__("re").match(r"^v?[0-9]+\.[0-9]+\.[0-9]+$", tag) else "v0.0.1")' 2>/dev/null || echo "v0.0.1")
 echo "  Latest version: $LATEST_TAG"
+
+if [[ "$FORCE" -ne 1 && "$LATEST_TAG" == "v0.0.1" ]]; then
+  echo "  ⚠️  Could not determine latest version, proceeding anyway (--force mode)"
+fi
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
