@@ -37,6 +37,9 @@ Copy `config.local.example` to `config.local` and customize.
 
 <!-- changelog below -->
 
+### v0.11.0
+- Merge PR #42: ⚡ Bolt: add `--force` flag and semver validation to install.sh
+
 ### v0.10.2
 - Merge PR #41: 🎨 Palette: Add `--help`/`-h` flags to install.sh for discoverability
 
