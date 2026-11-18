@@ -159,8 +159,12 @@ function send_msg {
     local dns_tmp geo_tmp
     dns_tmp=$(mktemp)
     geo_tmp=$(mktemp)
-    # Sentinel: ensure temp files are removed even on early exit/interrupt
-    trap 'rm -f "$dns_tmp" "$geo_tmp"' RETURN
+    # Sentinel: the temp files are removed explicitly below, before this
+    # function returns. A `trap ... RETURN` here would NOT be scoped to this
+    # function: bash keeps it installed and fires it again when the *caller*
+    # returns (and when any later callee returns). By then dns_tmp/geo_tmp are
+    # out of scope, so the second firing runs `rm -f "" ""` under `set -u` and
+    # aborts the caller just as it returns a value.
 
     reverse_dns_lookup "$ip" > "$dns_tmp" &
     local dns_pid=$!
