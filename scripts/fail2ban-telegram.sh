@@ -195,6 +195,8 @@ function send_msg {
   # cannot be fooled by a "200" substring inside the response body.
   local body_file http_code curl_rc
   body_file=$(mktemp)
+  # Sentinel: ensure the temp body file is removed even on early exit/interrupt.
+  trap 'rm -f "${body_file:-}"' RETURN
   http_code=$(curl --max-time 10 -s -X POST "$TELEGRAM_URL" \
     -d chat_id="$CHAT_ID" \
     --data-urlencode text="$message" \
