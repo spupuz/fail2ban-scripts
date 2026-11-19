@@ -58,7 +58,7 @@ TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 # Download the release archive
-curl -sSL "https://github.com/$REPO/archive/$LATEST_TAG.tar.gz" -o "$TMP_DIR/fail2ban-scripts.tar.gz"
+curl -fsSL --max-time 60 "https://github.com/$REPO/archive/$LATEST_TAG.tar.gz" -o "$TMP_DIR/fail2ban-scripts.tar.gz"
 
 # Extract scripts (only the scripts directory and VERSION)
 mkdir -p "$TMP_DIR/fail2ban-scripts-root"
