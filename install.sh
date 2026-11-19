@@ -5,6 +5,7 @@
 set -euo pipefail
 
 REPO="spupuz/fail2ban-scripts"
+FORCE=0
 
 usage() {
   cat <<'USAGE'
