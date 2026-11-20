@@ -37,6 +37,9 @@ Copy `config.local.example` to `config.local` and customize.
 
 <!-- changelog below -->
 
+### v0.11.3
+- Merge PR #45, #46: Initialize `FORCE=0` in install.sh to fix unbound variable under `set -u`
+
 ### v0.11.2
 - Merge PR #44: Add `--max-time 60` timeout to release archive download in install.sh to prevent indefinite hang
 

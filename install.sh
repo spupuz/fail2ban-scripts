@@ -23,7 +23,6 @@ USAGE
 
 # Parse arguments
 DEST_DIR=""
-FORCE=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dest) DEST_DIR="${2:?--dest requires a path}"; shift 2 ;;
