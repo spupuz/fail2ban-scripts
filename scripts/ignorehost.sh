@@ -253,7 +253,7 @@ def get_scripts_version():
 def format_message(ip, matching_domain, is_domain, reverse_dns, geo_location):
     """Format fancy Telegram message with emojis and better presentation"""
     timestamp = get_timestamp()
-    hostname = socket.gethostname()
+    hostname = html.escape(socket.gethostname())
     scripts_version = get_scripts_version()
     
     ignore_reason = "Matching Domain" if is_domain else "Matching Host Provider"
