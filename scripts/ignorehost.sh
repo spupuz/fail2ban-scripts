@@ -218,6 +218,13 @@ def reverse_dns_lookup(ip):
 def get_geo_location(ip):
     """Get geographical location of IP"""
     try:
+        import ipaddress
+        addr = ipaddress.ip_address(ip)
+        if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved or addr.is_multicast:
+            return "Not available"
+    except ValueError:
+        return "Not available"
+    try:
         with urllib.request.urlopen(f"https://ipapi.co/{ip}/json/", timeout=10) as response:
             data = json.loads(response.read())
         return f"{data['city']}, {data['region']}, {data['country_name']}"
