@@ -37,22 +37,35 @@ function show_usage {
 
 # Perform reverse DNS lookup
 function reverse_dns_lookup {
+  # Only perform the lookup for a validated IP address to avoid injection.
+  if ! [[ "$1" =~ ^[0-9a-fA-F:.]+$ ]]; then
+    echo "Not available"
+    return 0
+  fi
   python3 -c "import socket, sys; socket.setdefaulttimeout(10); print(socket.gethostbyaddr(sys.argv[1])[0])" "$1" 2>/dev/null || echo "Not available"
 }
 
 # Get geographical location
 function get_geo_location {
-  # Only query the geo API for a validated IPv4 address to avoid SSRF / injection.
-  if ! [[ "$1" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]]; then
+  # Only query the geo API for a validated IP address to avoid SSRF / injection.
+  # Accept IPv4 or IPv6; reject anything containing path/query/whitespace chars.
+  if ! [[ "$1" =~ ^[0-9a-fA-F:.]+$ ]]; then
     echo "Not available"
     return 0
   fi
-  for octet in "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"; do
-    if (( octet > 255 )); then
+  # IPv4 octet range check when applicable.
+  if [[ "$1" == *.* ]]; then
+    if ! [[ "$1" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]]; then
       echo "Not available"
       return 0
     fi
-  done
+    for octet in "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"; do
+      if (( octet > 255 )); then
+        echo "Not available"
+        return 0
+      fi
+    done
+  fi
   python3 -c "import urllib.request, json, sys; data = json.loads(urllib.request.urlopen('https://ipapi.co/' + sys.argv[1] + '/json/', timeout=10).read()); print(f\"{data.get('city','?')}, {data.get('region','?')}, {data.get('country_name','?')}\") " "$1" 2>/dev/null || echo "Not available"
 }
 
