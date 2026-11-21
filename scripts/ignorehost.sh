@@ -211,12 +211,24 @@ def is_allowed_host(ip):
 def reverse_dns_lookup(ip):
     """Perform reverse DNS lookup"""
     try:
+        import ipaddress
+        ipaddress.ip_address(ip)
+    except ValueError:
+        return "Not available"
+    try:
         return socket.gethostbyaddr(ip)[0]
     except:
         return "Not available"
 
 def get_geo_location(ip):
     """Get geographical location of IP"""
+    # Only query the geo API for a validated IP address to avoid SSRF /
+    # injection via a crafted value reaching this helper.
+    try:
+        import ipaddress
+        ipaddress.ip_address(ip)
+    except ValueError:
+        return "Not available"
     try:
         with urllib.request.urlopen(f"https://ipapi.co/{ip}/json/", timeout=10) as response:
             data = json.loads(response.read())
