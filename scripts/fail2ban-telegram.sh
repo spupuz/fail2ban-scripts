@@ -42,6 +42,11 @@ function reverse_dns_lookup {
     echo "Not available"
     return 0
   fi
+  # Sentinel: do not resolve (or leak) hostnames for non-public addresses.
+  if python3 -c "import ipaddress,sys; a=ipaddress.ip_address(sys.argv[1]); raise SystemExit(0 if (a.is_private or a.is_loopback or a.is_link_local or a.is_reserved or a.is_multicast) else 1)" "$1" 2>/dev/null; then
+    echo "Not available"
+    return 0
+  fi
   python3 -c "import socket, sys; socket.setdefaulttimeout(10); print(socket.gethostbyaddr(sys.argv[1])[0])" "$1" 2>/dev/null || echo "Not available"
 }
 
