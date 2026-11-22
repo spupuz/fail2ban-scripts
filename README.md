@@ -37,6 +37,9 @@ Copy `config.local.example` to `config.local` and customize.
 
 <!-- changelog below -->
 
+### v0.11.4
+- Merge PR #50: Avoid reverse DNS lookup for private/reserved IPs to prevent host info leak
+
 ### v0.11.3
 - Merge PR #45, #46: Initialize `FORCE=0` in install.sh to fix unbound variable under `set -u`
 
