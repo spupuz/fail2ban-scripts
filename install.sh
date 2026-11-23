@@ -69,8 +69,11 @@ tar -xzf "$TMP_DIR/fail2ban-scripts.tar.gz" -C "$TMP_DIR/fail2ban-scripts-root"
 cp -r "$TMP_DIR/fail2ban-scripts-root/fail2ban-scripts-$LATEST_TAG/scripts/"* scripts/
 cp "$TMP_DIR/fail2ban-scripts-root/fail2ban-scripts-$LATEST_TAG/VERSION" .
 
-# Set executable permissions
-chmod +x scripts/*.sh
+# Set executable permissions on the deployed scripts.
+# Use explicit 750 (u+rwx, g+rx, o+rx) instead of `chmod +x`: the latter also
+# adds the execute bit to group and others, widening the tight modes (0750)
+# that fail2ban expects on its action scripts.
+chmod 750 scripts/*.sh
 
 # Setup config.local from example if it doesn't exist
 CONFIG_LOCAL="$INSTALL_DIR/config.local"
