@@ -35,10 +35,19 @@ function show_usage {
   exit 1
 }
 
+# Validate that $1 is a real IP address using the same strict parser the
+# top-level argument check uses (python3 ipaddress). The previous bash regex
+# (^[0-9a-fA-F:.]+$) also accepted malformed values such as leading-zero
+# octets ("01.2.3.4") and "1.2.3.04", which then reached the DNS resolver and
+# the ipapi.co URL — a malformed value must never leave the process.
+function is_valid_ip {
+  python3 -c "import ipaddress,sys; ipaddress.ip_address(sys.argv[1])" "$1" 2>/dev/null
+}
+
 # Perform reverse DNS lookup
 function reverse_dns_lookup {
   # Only perform the lookup for a validated IP address to avoid injection.
-  if ! [[ "$1" =~ ^[0-9a-fA-F:.]+$ ]]; then
+  if ! is_valid_ip "$1"; then
     echo "Not available"
     return 0
   fi
@@ -53,23 +62,17 @@ function reverse_dns_lookup {
 # Get geographical location
 function get_geo_location {
   # Only query the geo API for a validated IP address to avoid SSRF / injection.
-  # Accept IPv4 or IPv6; reject anything containing path/query/whitespace chars.
-  if ! [[ "$1" =~ ^[0-9a-fA-F:.]+$ ]]; then
+  # Use the strict ipaddress parser (rejects leading-zero octets, ports, and
+  # any non-IP value) before building the ipapi.co URL.
+  if ! is_valid_ip "$1"; then
     echo "Not available"
     return 0
   fi
-  # IPv4 octet range check when applicable.
-  if [[ "$1" == *.* ]]; then
-    if ! [[ "$1" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]]; then
-      echo "Not available"
-      return 0
-    fi
-    for octet in "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"; do
-      if (( octet > 255 )); then
-        echo "Not available"
-        return 0
-      fi
-    done
+  # Reject non-public addresses: never query the geo API for private,
+  # loopback, link-local, reserved or multicast ranges.
+  if python3 -c "import ipaddress,sys; a=ipaddress.ip_address(sys.argv[1]); raise SystemExit(0 if (a.is_private or a.is_loopback or a.is_link_local or a.is_reserved or a.is_multicast) else 1)" "$1" 2>/dev/null; then
+    echo "Not available"
+    return 0
   fi
   python3 -c "import urllib.request, json, sys; data = json.loads(urllib.request.urlopen('https://ipapi.co/' + sys.argv[1] + '/json/', timeout=10).read()); print(f\"{data.get('city','?')}, {data.get('region','?')}, {data.get('country_name','?')}\") " "$1" 2>/dev/null || echo "Not available"
 }
@@ -283,23 +286,9 @@ fi
 
 # Validate IP address if provided (supports IPv4 and IPv6)
 if [ -n "$2" ]; then
-  if ! python3 -c "import ipaddress,sys; ipaddress.ip_address(sys.argv[1])" "$2" 2>/dev/null; then
+  if ! is_valid_ip "$2"; then
     echo "Error: Invalid IP address format" >&2
     exit 1
-  fi
-  # Validate each octet is within 0-255 (IPv4 only; IPv6 has no octets)
-  if [[ "$2" == *.* && "$2" != *:* ]]; then
-    IFS='.' read -r o1 o2 o3 o4 <<< "$2"
-    for octet in "$o1" "$o2" "$o3" "$o4"; do
-      # Strip leading zeros before numeric comparison: bash `[ ] -gt` treats
-      # values with a leading zero as octal ("08"/"09" crash, "010" reads as 8).
-      octet_clean="${octet##0}"
-      [[ -z "$octet_clean" ]] && octet_clean=0
-      if ! [[ "$octet_clean" =~ ^[0-9]+$ ]] || [ "$octet_clean" -gt 255 ]; then
-        echo "Error: Invalid IP address format" >&2
-        exit 1
-      fi
-    done
   fi
 fi
 
