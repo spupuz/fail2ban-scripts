@@ -304,7 +304,7 @@ function trigger_auto_update {
   [[ -n "$data_dir" ]] || return 0
   updater="$data_dir/scripts/version_check.sh"
   [[ -f "$updater" && -x "$updater" ]] || return 0
-  nohup "$updater" --dest "$data_dir" --quiet >/dev/null 2>&1 &
+  nohup "$updater" --dest "$data_dir" --with-config --quiet >/dev/null 2>&1 &
   disown 2>/dev/null || true
   return 0
 }
