@@ -84,7 +84,8 @@ function get_timestamp {
 
 # Format a duration in seconds into a human-readable string (e.g. "1h 30m", "45m", "30s")
 function format_duration {
-  local secs="${1:-0}"
+  local secs="${1:-}"
+  if [[ -z "$secs" || "$secs" == "0" ]]; then echo "unknown"; return; fi
   [[ "$secs" =~ ^[0-9]+$ ]] || { echo "$secs"; return; }
   if (( secs >= 3600 )); then
     local h=$((secs / 3600))

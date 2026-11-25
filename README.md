@@ -37,6 +37,9 @@ Copy `config.local.example` to `config.local` and customize.
 
 <!-- changelog below -->
 
+### v0.12.1
+- Telegram: show "unknown" instead of 0s when ban duration is unavailable
+
 ### v0.12.0
 - Merge PR #51: Replace loose IP regex with strict python3 ipaddress parser; block private/loopback/reserved targets
 - Telegram ban message: show ban duration and recidivist flag; unban message: show how long the IP was banned
