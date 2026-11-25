@@ -82,6 +82,23 @@ function get_timestamp {
   date '+%Y-%m-%d %H:%M:%S %Z'
 }
 
+# Format a duration in seconds into a human-readable string (e.g. "1h 30m", "45m", "30s")
+function format_duration {
+  local secs="${1:-0}"
+  [[ "$secs" =~ ^[0-9]+$ ]] || { echo "$secs"; return; }
+  if (( secs >= 3600 )); then
+    local h=$((secs / 3600))
+    local m=$(((secs % 3600) / 60))
+    if (( m > 0 )); then echo "${h}h ${m}m"; else echo "${h}h"; fi
+  elif (( secs >= 60 )); then
+    local m=$((secs / 60))
+    local r=$((secs % 60))
+    if (( r > 0 )); then echo "${m}m ${r}s"; else echo "${m}m"; fi
+  else
+    echo "${secs}s"
+  fi
+}
+
 # Version of the deployed scripts, shown in every message: it tells which
 # release is running (and therefore whether the automatic update has already
 # been applied). The file is looked up in the fail2ban data directory and,
@@ -109,6 +126,9 @@ function format_message {
   local ip="$2"
   local reverse_dns="$3"
   local geo_location="$4"
+  local ban_duration="${5:-}"
+  local jail="${6:-}"
+  local banned_duration="${7:-}"
   
   local timestamp=$(get_timestamp)
   local raw_hostname=$(hostname)
@@ -133,13 +153,17 @@ function format_message {
               "<b>📝 Status:</b> Service has been stopped"
       ;;
     "ban")
+      local recidivist="No"
+      if [[ "${jail,,}" == *recidive* ]]; then recidivist="Yes"; fi
       echo -e "<b>${EMOJI_BAN} IP Address Banned</b>\n\n"\
               "<b>🖥️  Server:</b> ${safe_hostname}\n"\
               "<b>🕐 Time:</b> ${timestamp}\n"\
               "<b>📦 Scripts version:</b> ${scripts_version}\n"\
               "<b>🆔 IP:</b> ${ip}\n"\
               "<b>🌐 Reverse DNS:</b> ${reverse_dns}\n"\
-              "<b>📍 Location:</b> ${geo_location}"
+              "<b>📍 Location:</b> ${geo_location}\n"\
+              "<b>⏱️ Ban duration:</b> $(format_duration "${ban_duration}")\n"\
+              "<b>🔁 Recidivist:</b> ${recidivist}"
       ;;
     "unban")
       echo -e "<b>${EMOJI_UNBAN} IP Address Unbanned</b>\n\n"\
@@ -148,7 +172,8 @@ function format_message {
               "<b>📦 Scripts version:</b> ${scripts_version}\n"\
               "<b>🆔 IP:</b> ${ip}\n"\
               "<b>🌐 Reverse DNS:</b> ${reverse_dns}\n"\
-              "<b>📍 Location:</b> ${geo_location}"
+              "<b>📍 Location:</b> ${geo_location}\n"\
+              "<b>⏱️ Banned for:</b> $(format_duration "${banned_duration}")"
       ;;
   esac
 }
@@ -169,7 +194,30 @@ function escape_html {
 function send_msg {
   local action="$1"
   local ip="$2"
-  
+  local ban_duration="${3:-}"
+  local jail="${4:-}"
+
+  local banned_duration=""
+  # Storage for ban start timestamps
+  local data_dir="${FAIL2BAN_DATA_DIR:-/tmp}"
+  local store_dir="$data_dir/fail2ban-bantimes"
+  mkdir -p "$store_dir" 2>/dev/null || true
+  local store_file="$store_dir/${ip//[^0-9a-fA-F.:]/_}"
+
+  if [[ "$action" == "ban" ]]; then
+    date +%s > "$store_file" 2>/dev/null || true
+  fi
+  if [[ "$action" == "unban" && -f "$store_file" ]]; then
+    local start now elapsed
+    read -r start < "$store_file" 2>/dev/null || true
+    now=$(date +%s)
+    if [[ "$start" =~ ^[0-9]+$ ]]; then
+      elapsed=$((now - start))
+      banned_duration="${elapsed}"
+    fi
+    rm -f "$store_file" 2>/dev/null || true
+  fi
+
   local reverse_dns="Not checked"
   local geo_location="Not checked"
   
@@ -212,7 +260,7 @@ function send_msg {
   local safe_geo_location=$(escape_html "$geo_location")
 
   # Format the message
-  local message=$(format_message "$action" "$safe_ip" "$safe_reverse_dns" "$safe_geo_location")
+  local message=$(format_message "$action" "$safe_ip" "$safe_reverse_dns" "$safe_geo_location" "$ban_duration" "$jail" "$banned_duration")
   
   # Send message via Telegram API
   # Bolt: Enforce a timeout to prevent Fail2Ban from blocking indefinitely
@@ -303,7 +351,7 @@ case "$1" in
     ;;
   "ban")
     if [ -n "$2" ]; then
-      send_msg "ban" "$2" || status=$?
+      send_msg "ban" "$2" "$3" "$4" || status=$?
     else
       echo "Error: IP address required for ban action" >&2
       show_usage

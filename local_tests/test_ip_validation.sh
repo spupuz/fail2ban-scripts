@@ -34,7 +34,7 @@ chmod +x "$TMP/py/python3"
 
 # The functions under test live above the argument-handling section; cut the
 # file there so the harness can call send_msg directly.
-sed -n '1,281p' scripts/fail2ban-telegram.sh > "$TMP/lib.sh"
+sed -n '1,/^# Check for script arguments/{/^# Check for script arguments/!p}' scripts/fail2ban-telegram.sh > "$TMP/lib.sh"
 cat >> "$TMP/lib.sh" <<'LIB'
 # Credentials are irrelevant here: the curl stub swallows the request. Kept as
 # placeholders so the repository secret scanner does not flag this file.
