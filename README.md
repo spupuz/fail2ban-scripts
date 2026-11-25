@@ -37,6 +37,9 @@ Copy `config.local.example` to `config.local` and customize.
 
 <!-- changelog below -->
 
+### v0.12.2
+- Auto-update now refreshes telegram.local (no Fail2Ban-UI)
+
 ### v0.12.1
 - Telegram: show "unknown" instead of 0s when ban duration is unavailable
 
