@@ -194,10 +194,13 @@ def is_allowed_host(ip):
     if not host:
         return False
     else:
+        # The domain must be a true suffix of the host: a dot must precede it
+        # so that "host-1.static.isp.it.evil.com" cannot match the allowed
+        # suffix ".static.isp.it" and whitelist a look-alike attacker domain.
         m = re.match(r'.\S+(-\d+)(?P<domain>\.\S+)', host)
         if m:
             domain = m.group('domain')
-            if domain in ALLOWED_HOSTS:
+            if domain in ALLOWED_HOSTS and host.endswith(domain):
                 # Forward-Confirmed reverse DNS (FCrDNS) check supporting IPv4 and IPv6
                 try:
                     addr_info = socket.getaddrinfo(host, None)
