@@ -37,6 +37,10 @@ Copy `config.local.example` to `config.local` and customize.
 
 <!-- changelog below -->
 
+### v0.12.3
+- Merge PR #52: strict suffix match in ignorehost.sh to block look-alike domains
+- Telegram unban: include jail name in callback
+
 ### v0.12.2
 - Auto-update now refreshes telegram.local (no Fail2Ban-UI)
 
