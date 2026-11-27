@@ -547,8 +547,14 @@ telegram_notify() { # $1 = message
                  '{chat_id: $chat_id, text: $text, parse_mode: "HTML", disable_web_page_preview: true}')"
   fi
 
-  curl -fsSL --max-time 20 -X POST "https://api.telegram.org/bot${token}/sendMessage" \
-       -H 'Content-Type: application/json' -d "$payload" >/dev/null 2>&1 || true
+  # Sentinel: the bot token is embedded in the API URL. Passing it as a
+  # positional argument leaks the token into the process table (ps / procfs)
+  # and any shell audit log. Feed the URL to curl via a stdin config (-K -) so
+  # no secret ever appears in argv.
+  curl -fsSL --max-time 20 -X POST -K - \
+       -H 'Content-Type: application/json' -d "$payload" >/dev/null 2>&1 <<CURLCFG || true
+url = "https://api.telegram.org/bot${token}/sendMessage"
+CURLCFG
   return 0
 }
 

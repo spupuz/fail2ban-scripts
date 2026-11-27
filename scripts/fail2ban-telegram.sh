@@ -267,17 +267,25 @@ function send_msg {
   # Bolt: Enforce a timeout to prevent Fail2Ban from blocking indefinitely
   # Sentinel: capture HTTP status separately from body so the success check
   # cannot be fooled by a "200" substring inside the response body.
+  # Sentinel: the bot token is embedded in TELEGRAM_URL. Passing that URL as a
+  # positional argument exposes the token in the process table (ps / procfs,
+  # world-readable on default Linux) and in any shell audit log. The URL is
+  # therefore fed to curl through a config read from stdin (-K -), so no secret
+  # ever appears in argv. The message text is not secret and stays an argument.
   local body_file http_code curl_rc
   body_file=$(mktemp)
   # Sentinel: the temp body file is removed explicitly below, after curl
   # returns. A `trap ... RETURN` here would leak and fire again when the
   # caller returns, breaking it under `set -u` (see top of send_msg).
-  http_code=$(curl --max-time 10 -s -X POST "$TELEGRAM_URL" \
+  http_code=$(curl --max-time 10 -s -X POST -K - \
     -d chat_id="$CHAT_ID" \
     --data-urlencode text="$message" \
     -d parse_mode="HTML" \
     -o "$body_file" \
-    -w "%{http_code}")
+    -w "%{http_code}" <<CURLCFG
+url = "$TELEGRAM_URL"
+CURLCFG
+  )
   curl_rc=$?
   rm -f "$body_file"
 
