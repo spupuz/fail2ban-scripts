@@ -206,12 +206,15 @@ function send_msg {
   local store_file="$store_dir/${ip//[^0-9a-fA-F.:]/_}"
 
   if [[ "$action" == "ban" ]]; then
-    date +%s > "$store_file" 2>/dev/null || true
+    # Bolt: EPOCHSECONDS is a bash built-in (bash 5+) refreshed on every
+    # access, so it replaces the `date +%s` subprocess with zero behaviour
+    # change (second precision is all that is stored).
+    printf '%s' "$EPOCHSECONDS" > "$store_file" 2>/dev/null || true
   fi
   if [[ "$action" == "unban" && -f "$store_file" ]]; then
     local start now elapsed
     read -r start < "$store_file" 2>/dev/null || true
-    now=$(date +%s)
+    now="$EPOCHSECONDS"
     if [[ "$start" =~ ^[0-9]+$ ]]; then
       elapsed=$((now - start))
       banned_duration="${elapsed}"
